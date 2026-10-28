@@ -1,0 +1,183 @@
+<mujoco model="bruce interactive scene">
+  <include file="bruce.xml"/>
+
+  <statistic center="0 0 0.5" extent="2.0"/>
+
+  <option timestep="0.001" gravity="0 0 -9.81" tolerance="1e-05" cone="elliptic" jacobian="dense" solver="Newton" noslip_iterations="10" integrator="Euler" iterations="30" impratio="10.0">
+    <flag override="enable" gravity="enable" contact="enable"/>
+  </option>
+
+  <default>
+    <joint limited="true" damping="2.0" armature="0.05" frictionloss="0.1"/>
+    <geom condim="4" friction="1.5 0.01 0.0002" solref="0.004 1" solimp="0.9 0.95 0.001"/>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.3 0.3 0.3" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="150" elevation="-25"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.35 0.55 0.75" rgb2="0.05 0.05 0.1" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.22 0.28 0.35" rgb2="0.14 0.18 0.24" markrgb="0.75 0.75 0.75" width="400" height="400"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="12 12" reflectance="0.15"/>
+    
+    <material name="wall_mat" specular="0.1" shininess="0.1" rgba="0.88 0.90 0.92 1"/>
+    <material name="wall_accent" specular="0.3" shininess="0.3" rgba="0.20 0.45 0.75 1"/>
+    <material name="wood_mat" specular="0.2" shininess="0.2" rgba="0.65 0.45 0.28 1"/>
+    <material name="metal_mat" specular="0.8" shininess="0.7" rgba="0.80 0.82 0.85 1"/>
+    <material name="barrel_mat" specular="0.5" shininess="0.4" rgba="0.95 0.55 0.10 1"/>
+    <material name="ball_mat" specular="0.6" shininess="0.5" rgba="0.95 0.22 0.20 1"/>
+    <material name="box_mat" specular="0.4" shininess="0.3" rgba="0.22 0.60 0.95 1"/>
+    <material name="obstacle_mat" specular="0.3" shininess="0.2" rgba="0.95 0.78 0.20 1"/>
+    <material name="target_mat" specular="0.5" shininess="0.5" rgba="0.20 0.88 0.45 1"/>
+    <material name="goal_net_mat" specular="0.1" shininess="0.1" rgba="0.95 0.95 0.95 0.4"/>
+  </asset>
+
+  <worldbody>
+    <!-- Lighting -->
+    <light pos="0 0 6.0" dir="0 0 -1" directional="true" diffuse="0.85 0.85 0.85" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light pos="4.0 -4.0 4.5" dir="-1 1 -1" directional="true" diffuse="0.45 0.45 0.45" castshadow="false"/>
+    <light pos="-4.0 4.0 4.5" dir="1 -1 -1" directional="true" diffuse="0.45 0.45 0.45" castshadow="false"/>
+
+    <!-- Arena Floor -->
+    <geom name="floor" size="25 25 0.05" type="plane" material="groundplane" condim="4"/>
+
+    <!-- Cameras -->
+    <camera name="overview_cam" pos="2.5 -2.5 1.8" xyaxes="0.707 0.707 0 -0.35 0.35 0.87"/>
+    <camera name="front_cam" pos="2.2 0 0.7" xyaxes="0 1 0 -0.2 0 0.98"/>
+    <camera name="side_cam" pos="0 -2.5 0.8" xyaxes="1 0 0 0 0.25 0.97"/>
+    <camera name="follow_cam" mode="trackcom" pos="1.6 -1.4 1.0" xyaxes="0.75 0.66 0 -0.25 0.28 0.92"/>
+
+    <!-- ======================================================= -->
+    <!-- SECTION 1: INDOOR ROBOTICS LAB & OFFICE (X < 0)         -->
+    <!-- Designed for 2D/3D SLAM Benchmarking & Room Mapping     -->
+    <!-- ======================================================= -->
+
+    <!-- Main Dividing Wall between Indoor Lab and Obstacle Course -->
+    <geom name="div_wall_north" pos="-1.5 3.2 0.5" size="0.1 2.8 0.5" type="box" material="wall_mat"/>
+    <geom name="div_wall_south" pos="-1.5 -3.2 0.5" size="0.1 2.8 0.5" type="box" material="wall_mat"/>
+    <!-- Central Entrance Doorway opening at X = -1.5, Y in [-0.5, 0.5] (1.0m doorway) -->
+
+    <!-- Corridor North Wall -->
+    <geom name="corridor_wall_n1" pos="-4.5 1.0 0.5" size="3.0 0.08 0.5" type="box" material="wall_mat"/>
+    <geom name="corridor_wall_n2" pos="-9.0 1.0 0.5" size="1.2 0.08 0.5" type="box" material="wall_mat"/>
+    <!-- Doorway to Lab Room 1 at X = -7.6, Y = 1.0 (0.8m wide) -->
+
+    <!-- Corridor South Wall -->
+    <geom name="corridor_wall_s1" pos="-4.5 -1.0 0.5" size="3.0 0.08 0.5" type="box" material="wall_mat"/>
+    <geom name="corridor_wall_s2" pos="-9.0 -1.0 0.5" size="1.2 0.08 0.5" type="box" material="wall_mat"/>
+    <!-- Doorway to Equipment Room 2 at X = -7.6, Y = -1.0 (0.8m wide) -->
+
+    <!-- West Perimeter Wall -->
+    <geom name="west_perimeter_wall" pos="-10.5 0 0.5" size="0.1 5.5 0.5" type="box" material="wall_mat"/>
+    <!-- North Perimeter Wall of Lab Section -->
+    <geom name="north_perimeter_wall" pos="-6.0 5.5 0.5" size="4.6 0.1 0.5" type="box" material="wall_mat"/>
+    <!-- South Perimeter Wall of Lab Section -->
+    <geom name="south_perimeter_wall" pos="-6.0 -5.5 0.5" size="4.6 0.1 0.5" type="box" material="wall_mat"/>
+
+    <!-- Internal Partition Wall in Lab Room 1 -->
+    <geom name="lab_partition_1" pos="-5.5 3.5 0.4" size="1.8 0.08 0.4" type="box" material="wall_accent"/>
+
+    <!-- Furniture: Lab Workstation Benches -->
+    <geom name="lab_table_1" pos="-8.5 3.5 0.22" size="0.6 1.4 0.22" type="box" material="wood_mat"/>
+    <geom name="lab_table_2" pos="-8.5 -3.5 0.22" size="0.6 1.4 0.22" type="box" material="wood_mat"/>
+    <geom name="lab_shelf_1" pos="-4.0 -4.5 0.35" size="1.2 0.35 0.35" type="box" material="metal_mat"/>
+
+    <!-- Visual SLAM Landmark Columns / Features -->
+    <geom name="landmark_col_1" pos="-3.5 3.5 0.45" size="0.12 0.45" type="cylinder" material="wall_accent"/>
+    <geom name="landmark_col_2" pos="-3.5 -3.5 0.45" size="0.12 0.45" type="cylinder" material="barrel_mat"/>
+
+    <!-- ======================================================= -->
+    <!-- SECTION 2: OBSTACLE PLAYGROUND & ARENA (X > 0)          -->
+    <!-- Multi-Tier Stairs, Incline Ramp, Soccer Goal & Props    -->
+    <!-- ======================================================= -->
+
+    <!-- 1. Multi-Tier Wooden Staircase (3 steps + landing platform) -->
+    <geom name="stair_step_1" pos="3.0 2.0 0.04" size="0.30 0.60 0.04" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
+    <geom name="stair_step_2" pos="3.5 2.0 0.08" size="0.30 0.60 0.08" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
+    <geom name="stair_step_3" pos="4.0 2.0 0.12" size="0.30 0.60 0.12" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
+    <geom name="stair_platform" pos="4.6 2.0 0.16" size="0.40 0.60 0.16" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
+
+    <!-- 2. Incline Ramp (12-degree slope) leading up to elevated platform -->
+    <geom name="incline_ramp" pos="3.2 -2.0 0.08" quat="0.994 0 0.105 0" size="0.65 0.55 0.04" type="box" material="obstacle_mat" friction="1.4 0.01 0.001"/>
+    <geom name="ramp_landing" pos="4.2 -2.0 0.15" size="0.45 0.55 0.15" type="box" material="obstacle_mat" friction="1.4 0.01 0.001"/>
+
+    <!-- 3. Soccer Goal Net at X = 5.2m -->
+    <!-- Left Post -->
+    <geom name="goal_post_l" pos="5.2 -1.1 0.45" size="0.04 0.45" type="cylinder" material="metal_mat"/>
+    <!-- Right Post -->
+    <geom name="goal_post_r" pos="5.2 1.1 0.45" size="0.04 0.45" type="cylinder" material="metal_mat"/>
+    <!-- Crossbar -->
+    <geom name="goal_crossbar" pos="5.2 0.0 0.90" quat="0.7071 0.7071 0 0" size="0.04 1.1" type="cylinder" material="metal_mat"/>
+    <!-- Goal Back Net / Wall -->
+    <geom name="goal_back_wall" pos="5.8 0.0 0.45" size="0.05 1.15 0.45" type="box" material="goal_net_mat"/>
+
+    <!-- Target Goal Center Marker -->
+    <site name="goal_target" pos="5.3 0 0.01" size="0.35 0.01" type="cylinder" material="target_mat"/>
+
+    <!-- ======================================================= -->
+    <!-- DYNAMIC INTERACTIVE OBJECTS (WITH RIGID BODY DYNAMICS)   -->
+    <!-- ======================================================= -->
+
+    <!-- Dynamic Soccer Ball positioned 1.25m in front of BRUCE -->
+    <body name="soccer_ball" pos="1.25 -0.076 0.06">
+      <freejoint name="ball_joint"/>
+      <inertial pos="0 0 0" mass="0.15" diaginertia="0.0004 0.0004 0.0004"/>
+      <geom name="soccer_ball_geom" type="sphere" size="0.055" material="ball_mat" condim="4" friction="0.8 0.005 0.0001" solref="0.005 1"/>
+    </body>
+
+    <!-- Dynamic Target Box 1 (Blue Crate) -->
+    <body name="target_box" pos="1.90 0.35 0.06">
+      <freejoint name="box_joint"/>
+      <inertial pos="0 0 0" mass="0.4" diaginertia="0.001 0.001 0.001"/>
+      <geom name="target_box_geom" type="box" size="0.06 0.06 0.06" material="box_mat" condim="4" friction="0.9 0.01 0.0002"/>
+    </body>
+
+    <!-- Dynamic Target Box 2 (Larger Pushable Box) -->
+    <body name="target_box_2" pos="2.40 0.85 0.09">
+      <freejoint name="box_2_joint"/>
+      <inertial pos="0 0 0" mass="0.65" diaginertia="0.002 0.002 0.002"/>
+      <geom name="target_box_2_geom" type="box" size="0.09 0.09 0.09" material="wall_accent" condim="4" friction="0.85 0.01 0.0002"/>
+    </body>
+
+    <!-- Dynamic Industrial Barrel 1 -->
+    <body name="barrel_1" pos="2.80 -0.85 0.12">
+      <freejoint name="barrel_1_joint"/>
+      <inertial pos="0 0 0" mass="0.8" diaginertia="0.003 0.003 0.003"/>
+      <geom name="barrel_1_geom" type="cylinder" size="0.08 0.12" material="barrel_mat" condim="4" friction="0.75 0.01 0.0002"/>
+    </body>
+
+    <!-- Obstacle Step Block in Playground Runway -->
+    <body name="obstacle_block" pos="2.60 -0.35 0.05">
+      <freejoint name="obstacle_joint"/>
+      <inertial pos="0 0 0" mass="0.8" diaginertia="0.003 0.003 0.003"/>
+      <geom name="obstacle_geom" type="box" size="0.08 0.12 0.05" material="obstacle_mat" condim="4" friction="1.0 0.01 0.0002"/>
+    </body>
+
+    <!-- ======================================================= -->
+    <!-- PICK-AND-PLACE FURNITURE: TABLE & GRASPABLE OBJECTS     -->
+    <!-- ======================================================= -->
+
+    <!-- Delivery Table: fixed platform where robot can place objects -->
+    <body name="place_table" pos="4.5 -1.0 0.0">
+      <geom name="table_surface" type="box" size="0.50 0.35 0.22" pos="0 0 0.22" material="wood_mat"
+            condim="4" friction="0.9 0.01 0.0002"/>
+      <geom name="table_leg_fl" type="cylinder" size="0.03 0.22" pos=" 0.44  0.32 0.22" material="metal_mat"/>
+      <geom name="table_leg_fr" type="cylinder" size="0.03 0.22" pos=" 0.44 -0.32 0.22" material="metal_mat"/>
+      <geom name="table_leg_bl" type="cylinder" size="0.03 0.22" pos="-0.44  0.32 0.22" material="metal_mat"/>
+      <geom name="table_leg_br" type="cylinder" size="0.03 0.22" pos="-0.44 -0.32 0.22" material="metal_mat"/>
+    </body>
+
+    <!-- Small Graspable Crate (pick-and-place target, lighter than target_box) -->
+    <body name="pickup_crate" pos="2.0 -1.2 0.045">
+      <freejoint name="pickup_crate_joint"/>
+      <inertial pos="0 0 0" mass="0.25" diaginertia="0.0008 0.0008 0.0008"/>
+      <geom name="pickup_crate_geom" type="box" size="0.045 0.045 0.045" material="target_mat"
+            condim="4" friction="0.95 0.01 0.0002"/>
+    </body>
+
+  </worldbody>
+</mujoco>
+

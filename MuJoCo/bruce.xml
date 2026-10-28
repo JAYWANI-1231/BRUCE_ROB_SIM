@@ -1,5 +1,5 @@
 <mujoco model="bruce">
-  <compiler angle="radian" meshdir="../Gazebo/models/bruce/meshes" autolimits="true"/>
+  <compiler angle="radian" meshdir="../Gazebo/meshes" autolimits="true"/>
 
   <asset>
     <mesh name="base_link" file="base_link.STL"/>
@@ -25,6 +25,15 @@
       <freejoint/>
       <inertial pos="0.02259605 -0.00011305 0.06140054" mass="1.31688922" diaginertia="0.0133543 0.01023631 0.005471"/>
       <geom name="body" type="mesh" mesh="base_link" rgba="0.752941176 0.752941176 0.752941176 1"/>
+
+      <!-- Onboard Perception Sensors: Head RGB-D Camera & 3D LiDAR Site -->
+      <camera name="head_camera" pos="0.08 0 0.16" fovy="65" xyaxes="0 -1 0 0 0 1"/>
+      <site name="lidar_site" pos="0.02 0 0.22" size="0.035 0.018" type="cylinder" rgba="0.1 0.7 0.9 0.85"/>
+
+      <!-- Humanoid Upper Body Contours: Sleek Head, Visor, and Chest Armor (Aesthetic, non-colliding) -->
+      <geom name="humanoid_head" type="ellipsoid" size="0.045 0.052 0.045" pos="0.035 0 0.20" rgba="0.18 0.20 0.25 0.95" contype="0" conaffinity="0" mass="0"/>
+      <geom name="humanoid_visor" type="cylinder" size="0.038 0.012" pos="0.072 0 0.195" quat="0.707107 0 0.707107 0" rgba="0.0 0.85 1.0 0.85" contype="0" conaffinity="0" mass="0"/>
+      <geom name="humanoid_chest" type="box" size="0.032 0.088 0.065" pos="0.025 0 0.09" rgba="0.25 0.28 0.33 0.95" contype="0" conaffinity="0" mass="0"/>
 
       <!-- RIGHT LEG -->
       <body name="hip_yaw_link_r" pos="0.029216 -0.0758557 -0.039765" quat="0.707107 0 0 -0.707107">
