@@ -100,6 +100,14 @@
             <inertial pos="0.0217884 0 0.0003604" quat="0.499291 0.500708 0.500708 0.499291" mass="0.0524404" diaginertia="7.261e-05 7.10305e-05 7.52949e-06"/>
             <joint name="elbow_pitch_r" pos="0 0 0" axis="0 0 1" limited="true" range="-3.1415 3.1415"/>
             <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="elbow_pitch_link_r"/>
+          <body name="hand_r" pos="0.105 0 0">
+            <geom name="wrist_r" type="cylinder" size="0.016 0.012" quat="0.707107 0 0.707107 0" rgba="0.22 0.24 0.28 1"/>
+            <geom name="palm_r" type="box" size="0.018 0.022 0.012" pos="0.018 0 0" rgba="0.28 0.30 0.35 1"/>
+            <geom name="finger_r1" type="capsule" size="0.006 0.022" pos="0.040 0.018 0" quat="0.707107 0 0.707107 0" rgba="0.0 0.85 1.0 0.95" condim="4" friction="1.5 0.01 0.001"/>
+            <geom name="finger_r2" type="capsule" size="0.006 0.022" pos="0.040 -0.018 0" quat="0.707107 0 0.707107 0" rgba="0.0 0.85 1.0 0.95" condim="4" friction="1.5 0.01 0.001"/>
+            <site name="grasp_site_r" pos="0.045 0 0" size="0.015" rgba="0 1 0.5 0.7"/>
+          </body>
+
           </body>
         </body>
       </body>

@@ -84,10 +84,23 @@ class BruceGameController:
 
         # Dynamic body IDs available for mouse-drag in Manipulation Mode
         self.dynamic_body_ids = []
-        for _dyn_name in ["soccer_ball", "target_box", "target_box_2", "barrel_1", "obstacle_block"]:
+        for _dyn_name in ["soccer_ball", "target_box", "target_box_2", "barrel_1", "obstacle_block", "pickup_crate"]:
             _bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, _dyn_name)
             if _bid >= 0:
                 self.dynamic_body_ids.append(_bid)
+
+        # All robot limb body IDs to exclude from LiDAR occupancy grid (prevent self-occlusion / scanning own feet)
+        self.robot_body_ids = set()
+        for _r_name in [
+            "base_link",
+            "hip_yaw_link_r", "hip_roll_link_r", "hip_pitch_link_r", "knee_pitch_link_r", "ankle_pitch_link_r",
+            "hip_yaw_link_l", "hip_roll_link_l", "hip_pitch_link_l", "knee_pitch_link_l", "ankle_pitch_link_l",
+            "shoulder_pitch_link_r", "shoulder_roll_link_r", "elbow_pitch_link_r",
+            "shoulder_pitch_link_l", "shoulder_roll_link_l", "elbow_pitch_link_l"
+        ]:
+            _rbid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, _r_name)
+            if _rbid >= 0:
+                self.robot_body_ids.add(_rbid)
 
         # Object Initial Poses (Placed in front to allow open walking and approach space)
         self.ball_init_pos = np.array([1.25, -0.076, 0.06])
@@ -208,9 +221,12 @@ class BruceGameController:
         self.nav_vx_override = 0.0
         self.nav_vy_override = 0.0
 
-        # ── LiDAR Occupancy Grid ──────────────────────────────────────────
-        self._occ_origin = np.array([-15.0, -15.0])
-        self.occ_grid = np.zeros((200, 200), dtype=np.uint8)
+        # ── Fixed-Origin World Occupancy Grid (30m x 30m, 10cm resolution) ──
+        self.occ_grid_res = 0.10
+        self.occ_grid_size = 300
+        self.occ_grid_origin = np.array([-15.0, -15.0])
+        self.occ_grid = np.zeros((self.occ_grid_size, self.occ_grid_size), dtype=np.uint8)
+        self._occ_decay_counter = 0
         self._lidar_step_counter = 0
 
         # Shared Memory State Export for ROS 2 Perception Bridge
@@ -220,7 +236,7 @@ class BruceGameController:
     def _init_shared_memory(self):
         """Initializes POSIX shared memory buffer for streaming to ROS 2 perception node."""
         shm_name = "bruce_sim_state"
-        # +3 extra slots at the end: [nav_goal_x, nav_goal_y, nav_goal_active]
+        # Total doubles: sim_time(1) + nq(1) + nv(1) + qpos(nq) + qvel(nv) + nav_goal(3)
         total_doubles = 3 + self.model.nq + self.model.nv + 3
         self.shm_size = total_doubles * 8
         try:
@@ -475,47 +491,81 @@ class BruceGameController:
         return cam_pos, ray_dir
 
     def _update_occupancy_grid(self):
-        """Casts 72 horizontal rays from the robot torso to build a 2-D occupancy grid."""
+        """
+        Multi-elevation 360° LiDAR sweep into a fixed-origin world occupancy grid:
+        - Scans at 3 vertical heights: Z=0.05m (floor items: ball, crates, blocks),
+          Z=0.16m (medium crates), and Z=0.35m (tables, barrels, walls).
+        - Accumulates into a fixed world-frame grid (30m x 30m, 10cm/cell).
+        - Gradually decays unvisited cells so moved objects are cleared.
+        """
         robot_pos = self.data.xpos[self.base_body_id].copy()
-        origin = np.array([robot_pos[0] - 15.0, robot_pos[1] - 15.0])
-        self._occ_origin = origin
+        origin = self.occ_grid_origin
+        res = self.occ_grid_res
+        sz = self.occ_grid_size
 
-        # Decay old values slightly
-        self.occ_grid = np.maximum(0, self.occ_grid.astype(np.int16) - 1).astype(np.uint8)
+        # Slow decay of old cells every 3 cycles
+        self._occ_decay_counter += 1
+        if self._occ_decay_counter >= 3:
+            self._occ_decay_counter = 0
+            self.occ_grid = np.maximum(0, self.occ_grid.astype(np.int16) - 1).astype(np.uint8)
 
         geom_id = np.zeros(1, dtype=np.int32)
-        ray_origin = np.array([robot_pos[0], robot_pos[1], 0.4])
-        for az_deg in np.linspace(0, 360, 72, endpoint=False):
-            az = math.radians(az_deg)
-            ray_dir = np.array([math.cos(az), math.sin(az), 0.0])
-            dist = mujoco.mj_ray(self.model, self.data, ray_origin, ray_dir,
-                                  None, 1, self.base_body_id, geom_id)
-            if 0.1 < dist < 10.0:
-                hit = ray_origin[:2] + ray_dir[:2] * dist
-                gx = int((hit[0] - origin[0]) / 0.15)
-                gy = int((hit[1] - origin[1]) / 0.15)
-                if 0 <= gx < 200 and 0 <= gy < 200:
-                    self.occ_grid[gy, gx] = min(255, int(self.occ_grid[gy, gx]) + 80)
+        heights = [0.05, 0.16, 0.35]
+        azimuths = np.linspace(0, 2 * math.pi, 90, endpoint=False)
+
+        for h in heights:
+            ray_origin = np.array([robot_pos[0], robot_pos[1], h])
+            for az in azimuths:
+                ray_dir = np.array([math.cos(az), math.sin(az), 0.0])
+                dist = mujoco.mj_ray(self.model, self.data, ray_origin, ray_dir,
+                                      None, 1, self.base_body_id, geom_id)
+                # Ignore self-hits on robot's own limbs and within robot's 28cm body radius
+                if 0.28 < dist < 12.0 and geom_id[0] >= 0:
+                    hit_body = self.model.geom_bodyid[geom_id[0]]
+                    if hit_body not in self.robot_body_ids:
+                        hit = ray_origin[:2] + ray_dir[:2] * dist
+                        gx = int((hit[0] - origin[0]) / res)
+                        gy = int((hit[1] - origin[1]) / res)
+                        if 0 <= gx < sz and 0 <= gy < sz:
+                            self.occ_grid[gy, gx] = min(255, int(self.occ_grid[gy, gx]) + 120)
 
     def _plan_path_astar(self, start_world, goal_world):
-        """Returns a list of world-frame (x, y) waypoints from start to goal using A*."""
+        """
+        A* path planner on the inflated fixed-origin occupancy grid.
+        Returns a collision-free list of waypoints from start to goal.
+        """
         import heapq
-        origin = self._occ_origin
-        res = 0.15
+        origin = self.occ_grid_origin
+        res = self.occ_grid_res
+        sz = self.occ_grid_size
 
         def w2g(wx, wy):
             return int((wx - origin[0]) / res), int((wy - origin[1]) / res)
 
         def g2w(gx, gy):
-            return origin[0] + gx * res, origin[1] + gy * res
+            return origin[0] + (gx + 0.5) * res, origin[1] + (gy + 0.5) * res
 
-        sx, sy = w2g(float(start_world[0]), float(start_world[1]))
-        gx, gy = w2g(float(goal_world[0]), float(goal_world[1]))
-
+        # 4 iterations of 10cm cells = 40cm safe obstacle clearance
         occ_bool = self.occ_grid > 40
-        occ_inflated = binary_dilation(occ_bool, iterations=2)
+        occ_inflated = binary_dilation(occ_bool, iterations=4)
 
-        if not (0 <= sx < 200 and 0 <= sy < 200 and 0 <= gx < 200 and 0 <= gy < 200):
+        def get_nearest_free(x, y):
+            if not (0 <= x < sz and 0 <= y < sz):
+                return x, y
+            if not occ_inflated[y, x]:
+                return x, y
+            for r in range(1, 15):
+                for dx in range(-r, r + 1):
+                    for dy in range(-r, r + 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < sz and 0 <= ny < sz and not occ_inflated[ny, nx]:
+                            return nx, ny
+            return x, y
+
+        sx, sy = get_nearest_free(*w2g(float(start_world[0]), float(start_world[1])))
+        gx, gy = get_nearest_free(*w2g(float(goal_world[0]), float(goal_world[1])))
+
+        if not (0 <= sx < sz and 0 <= sy < sz and 0 <= gx < sz and 0 <= gy < sz):
             return []
 
         open_set = []
@@ -535,13 +585,14 @@ class BruceGameController:
                     path.append(g2w(*node))
                     node = came_from[node]
                 path.reverse()
+                # Subsample waypoints every 3 cells (0.3m spacing) + exact goal
                 simplified = [np.array(p) for p in path[::3]]
                 simplified.append(np.array(goal_world[:2], dtype=float))
                 return simplified
 
             for dx, dy in neighbors:
                 nx, ny = cx + dx, cy + dy
-                if not (0 <= nx < 200 and 0 <= ny < 200):
+                if not (0 <= nx < sz and 0 <= ny < sz):
                     continue
                 if occ_inflated[ny, nx]:
                     continue
@@ -555,32 +606,56 @@ class BruceGameController:
         return []
 
     def _update_autonomous_nav(self):
-        """Called each physics step when nav_active is True. Injects motion intent overrides."""
+        """
+        Pure-pursuit lookahead waypoint tracker with dynamic replanning.
+        """
         if not self.nav_goal_active or self.nav_goal is None:
             return
 
         robot_pos = self.data.xpos[self.base_body_id][:2].copy()
+        dist_to_goal = np.linalg.norm(self.nav_goal - robot_pos)
 
-        if not self.nav_waypoints or self._nav_replan_counter <= 0:
-            self.nav_waypoints = self._plan_path_astar(robot_pos, self.nav_goal)
-            self._nav_replan_counter = 200
-        self._nav_replan_counter -= 1
-
-        while self.nav_waypoints:
-            wp = self.nav_waypoints[0]
-            if np.linalg.norm(wp - robot_pos) < 0.25:
-                self.nav_waypoints.pop(0)
-            else:
-                break
-
-        if np.linalg.norm(self.nav_goal - robot_pos) < 0.30:
+        # Check goal reached
+        if dist_to_goal < 0.30:
             self.nav_active = False
             self.active_state = "STAND"
+            self.nav_waypoints = []
             print("✅ Navigation goal reached!")
             return
 
-        wp = self.nav_waypoints[0] if self.nav_waypoints else self.nav_goal
-        direction = wp - robot_pos
+        # Periodic replan or replan if path empty
+        replan_needed = (not self.nav_waypoints or self._nav_replan_counter <= 0)
+
+        # Dynamic obstacle check: replan if upcoming waypoints are now blocked
+        if not replan_needed and self.nav_waypoints:
+            origin = self.occ_grid_origin
+            res = self.occ_grid_res
+            for wp in self.nav_waypoints[:4]:
+                gx = int((wp[0] - origin[0]) / res)
+                gy = int((wp[1] - origin[1]) / res)
+                if 0 <= gx < self.occ_grid_size and 0 <= gy < self.occ_grid_size:
+                    if self.occ_grid[gy, gx] > 80:
+                        replan_needed = True
+                        break
+
+        if replan_needed:
+            self.nav_waypoints = self._plan_path_astar(robot_pos, self.nav_goal)
+            self._nav_replan_counter = 80  # replan every 80 steps (~80 ms)
+
+        self._nav_replan_counter -= 1
+
+        # Advance waypoints that the robot has already reached (within 0.35m)
+        while len(self.nav_waypoints) > 1 and np.linalg.norm(self.nav_waypoints[0] - robot_pos) < 0.35:
+            self.nav_waypoints.pop(0)
+
+        # Pure-pursuit lookahead target: pick waypoint at least 0.45m ahead along path
+        target_wp = self.nav_waypoints[0] if self.nav_waypoints else self.nav_goal
+        for wp in self.nav_waypoints:
+            if np.linalg.norm(wp - robot_pos) >= 0.45:
+                target_wp = wp
+                break
+
+        direction = target_wp - robot_pos
         dist = np.linalg.norm(direction)
         if dist > 0.01:
             direction = direction / dist
@@ -717,7 +792,7 @@ class BruceGameController:
         lift_l = lift_amp * max(0.0, -math.sin(phi))
 
         # Yaw Steering via Hip Yaw Joints
-        steer_yaw = np.clip(yaw_err * 0.4, -0.35, 0.35)
+        steer_yaw = np.clip(yaw_err * 0.55, -0.40, 0.40)
         q[0] = steer_yaw * math.sin(phi)
         q[5] = -steer_yaw * math.sin(phi)
 
@@ -747,15 +822,18 @@ class BruceGameController:
         q[15] = self.q_nominal[15] - 0.30 * max(0.0, swing) + 0.12 * max(0.0, -swing)
         q[14] = self.q_nominal[14] - 0.03 * math.sin(phi)
 
-        # Forward Propulsion Force along Robot Heading
+        # Forward Propulsion Force with Alignment Scaling (CRITICAL FOR OBSTACLE AVOIDANCE)
+        # Slows forward drive when heading error is large, allowing the robot to pivot smoothly
         forward_dir = R_base[:, 0]
-        propel_force = 52.0 if self.active_state == "SPRINT" else 40.0
+        base_propel = 52.0 if self.active_state == "SPRINT" else 40.0
+        align_factor = max(0.0, math.cos(yaw_err))
+        propel_force = base_propel * (align_factor ** 2)
         self.data.qfrc_applied[0] = forward_dir[0] * propel_force
         self.data.qfrc_applied[1] = forward_dir[1] * propel_force
 
-        # Damped Heading Steering Torque
+        # Responsive Heading Steering Torque
         w_base = self.data.qvel[3:6]
-        self.data.qfrc_applied[5] = np.clip(45.0 * yaw_err - 8.0 * w_base[2], -15.0, 15.0)
+        self.data.qfrc_applied[5] = np.clip(65.0 * yaw_err - 10.0 * w_base[2], -20.0, 20.0)
 
     def _update_crouch_state(self, q, dt):
         """Crouching / Sitting down with balanced humanoid arm posture."""
@@ -967,6 +1045,16 @@ class BruceGameController:
         # Reset applied forces from previous step
         self.data.qfrc_applied[:] = 0.0
 
+        # ── 1. LiDAR occupancy grid update every 20 steps (~20 ms) ───────────
+        self._lidar_step_counter += 1
+        if self._lidar_step_counter >= 20:
+            self._lidar_step_counter = 0
+            self._update_occupancy_grid()
+
+        # ── 2. Autonomous navigation motion injection (BEFORE computing targets)
+        if self.nav_active and not (self.key_w or self.key_s or self.key_a or self.key_d):
+            self._update_autonomous_nav()
+
         # Target joint positions
         q_target = self.compute_joint_targets(dt)
         self.q_target = q_target
@@ -1014,16 +1102,6 @@ class BruceGameController:
             for bid in self.dynamic_body_ids:
                 self.data.xfrc_applied[bid, :] = 0.0
 
-        # ── LiDAR occupancy grid update every 20 steps ───────────────────────
-        self._lidar_step_counter += 1
-        if self._lidar_step_counter >= 20:
-            self._lidar_step_counter = 0
-            self._update_occupancy_grid()
-
-        # ── Autonomous navigation motion injection ───────────────────────────
-        if self.nav_active and not (self.key_w or self.key_s or self.key_a or self.key_d):
-            self._update_autonomous_nav()
-
         # Step MuJoCo Physics
         mujoco.mj_step(self.model, self.data)
 
@@ -1034,7 +1112,7 @@ class BruceGameController:
             nv = self.model.nv
             self.shm_buf[3 : 3 + nq] = self.data.qpos[:]
             self.shm_buf[3 + nq : 3 + nq + nv] = self.data.qvel[:]
-            # Nav goal fields: [nav_goal_x, nav_goal_y, nav_goal_active(0/1)]
+            # Nav goal fields: [nav_goal_x, nav_goal_y, nav_goal_active]
             nav_offset = 3 + nq + nv
             if self.nav_goal_active and self.nav_goal is not None:
                 self.shm_buf[nav_offset]     = float(self.nav_goal[0])
@@ -1148,6 +1226,20 @@ class BruceGameController:
                         np.array([0.05, 0.9, 0.3, 0.4], dtype=np.float32)
                     )
                     self.scene.ngeom += 1
+
+            # ── Render Planned Path as Cyan Waypoint Markers ──────────────────
+            if self.nav_active and self.nav_waypoints:
+                for wp in self.nav_waypoints:
+                    if self.scene.ngeom < self.scene.maxgeom:
+                        g_wp = self.scene.geoms[self.scene.ngeom]
+                        mujoco.mjv_initGeom(
+                            g_wp, mujoco.mjtGeom.mjGEOM_SPHERE,
+                            np.array([0.035, 0.0, 0.0]),
+                            np.array([wp[0], wp[1], 0.035]),
+                            np.eye(3).flatten().astype(np.float64),
+                            np.array([0.0, 0.85, 1.0, 0.75], dtype=np.float32)
+                        )
+                        self.scene.ngeom += 1
 
             mujoco.mjr_render(viewport, self.scene, self.context)
 
