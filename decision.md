@@ -256,3 +256,25 @@ This document records every major architectural, engineering, and control design
      - Complete ROS 2 topic catalog and directory layout.
      - Troubleshooting guide addressing snap glibc library symbol collisions, shared memory cleanup, and cursor locking.
 * **Result:** Repository meets professional open-source robotics publication standards and eliminates ambiguity regarding installation, operation, and architecture.
+
+---
+
+### Decision 21: Simple & Relatable IT Office Environment for Stakeholder Demos
+* **Status:** **Accepted**
+* **Context:** Clients and managers need an environment that feels familiar and directly speaks to IT/enterprise use cases (e.g. office delivery, facility inspection, server room patrolling). Abstract blocks or generic shapes don't communicate the commercial reality, while massive city models created unnecessary visual clutter. A simple, recognizable IT office environment bridges this gap.
+* **Decision:**
+  1. **Relatable IT Office Fixtures ($14 \times 14\,\text{m}$)**:
+     - **Developer Workstation**: Desk with widescreen code-editor monitor, desktop PC mini-tower with green LED, keyboard, mousepad, and coffee mug.
+     - **IT Server Rack & Network Cabinet**: Enterprise dark cabinet with 4 blade unit slots and green/amber network status LEDs.
+     - **Office Water Cooler**: Classic blue inverted bottle jug, white dispenser pedestal, and hot/cold taps.
+     - **Agile Scrum Whiteboard**: Whiteboard on aluminum stand with colorful sprint task sticky notes.
+     - **Meeting Table & Chairs**: Conference table with blue cushioned office chairs.
+     - **Delivery Platform (`place_table`) & Hardware Parcel (`pickup_crate`)**: Clean destination for autonomous courier delivery.
+  2. **Calibrated Lighting & Zero Glare**:
+     - Dimmed directional lights and matte slate-grey floor (`reflectance=0.0`) eliminating harsh glare and reflections.
+     - Tested camera frame brightness maintained at a comfortable, balanced $85.7$.
+  3. **Lightweight Physics & Flawless Navigation**:
+     - Maintained low complexity (32 bodies, 112 geoms) with sub-millisecond physics stepping ($1,000\,\text{Hz}$) and solid 60+ FPS.
+     - Multi-elevation LiDAR ($Z = 0.05\,\text{m}, 0.16\,\text{m}, 0.35\,\text{m}$) detects all IT furniture and obstacles.
+     - A* path planner verified routing around task chairs and developer desks with $>0.86\,\text{m}$ clearance and zero collisions.
+* **Result:** Highly relatable environment where managers and clients instantly visualize BRUCE operating inside their own office facilities.

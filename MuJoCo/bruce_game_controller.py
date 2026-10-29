@@ -84,7 +84,10 @@ class BruceGameController:
 
         # Dynamic body IDs available for mouse-drag in Manipulation Mode
         self.dynamic_body_ids = []
-        for _dyn_name in ["soccer_ball", "target_box", "target_box_2", "barrel_1", "obstacle_block", "pickup_crate"]:
+        for _dyn_name in [
+            "soccer_ball", "target_box", "target_box_2", "barrel_1", "obstacle_block", "pickup_crate",
+            "chair_1", "chair_2", "chair_3", "chair_4", "office_chair_1", "office_chair_2"
+        ]:
             _bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, _dyn_name)
             if _bid >= 0:
                 self.dynamic_body_ids.append(_bid)
@@ -209,6 +212,7 @@ class BruceGameController:
         self.manipulation_mode = False
         self.dragging_body_id = -1
         self.drag_target_pos = None
+        self._drag_obj_z_offset = 0.05
         self._last_click_time = 0.0
         self._last_click_pos = (0, 0)
 
@@ -350,18 +354,39 @@ class BruceGameController:
 
     def on_mouse_move(self, window, xpos, ypos):
         """Orbits the third-person camera based on mouse movement."""
-        # In manipulation mode, update drag target along floor plane
+        # In manipulation mode, update drag target along floor or table surfaces
         if self.manipulation_mode and self.dragging_body_id >= 0:
             w, h = glfw.get_framebuffer_size(self.window)
             cam_pos, ray_dir = self._cursor_to_ray(xpos, ypos, w, h)
-            if abs(ray_dir[2]) > 1e-6:
+
+            # Cast ray excluding the dragged body to find the exact supporting surface (table top or floor)
+            geom_id = np.zeros(1, dtype=np.int32)
+            dist = mujoco.mj_ray(self.model, self.data, cam_pos, ray_dir,
+                                 None, 1, self.dragging_body_id, geom_id)
+
+            if dist > 0 and geom_id[0] >= 0:
+                # Direct surface hit (table, desk, chair, floor)
+                surface_pt = cam_pos + dist * ray_dir
+                target_x = float(np.clip(surface_pt[0], -6.2, 6.2))
+                target_y = float(np.clip(surface_pt[1], -6.2, 6.2))
+                # Gentle 15mm hover clearance while carrying so it glides smoothly without scraping
+                target_z = float(np.clip(surface_pt[2] + self._drag_obj_z_offset + 0.015, 0.02, 1.2))
+                self.drag_target_pos = np.array([target_x, target_y, target_z])
+            elif ray_dir[2] < -0.05:
+                # Floor plane intersection (Z=0)
                 t = -cam_pos[2] / ray_dir[2]
                 floor_pt = cam_pos + t * ray_dir
-                self.drag_target_pos = np.array([
-                    floor_pt[0],
-                    floor_pt[1],
-                    self.data.xpos[self.dragging_body_id][2]
-                ])
+                target_x = float(np.clip(floor_pt[0], -6.2, 6.2))
+                target_y = float(np.clip(floor_pt[1], -6.2, 6.2))
+                target_z = float(self._drag_obj_z_offset + 0.015)
+                self.drag_target_pos = np.array([target_x, target_y, target_z])
+            else:
+                # Pointing toward horizon/sky: keep distance from camera, clamp height
+                target_pt = cam_pos + 2.5 * ray_dir
+                target_x = float(np.clip(target_pt[0], -6.2, 6.2))
+                target_y = float(np.clip(target_pt[1], -6.2, 6.2))
+                target_z = float(np.clip(target_pt[2], 0.05, 0.8))
+                self.drag_target_pos = np.array([target_x, target_y, target_z])
             return
 
         if not self.mouse_locked:
@@ -387,7 +412,7 @@ class BruceGameController:
         )
 
     def on_mouse_button(self, window, button, action, mods):
-        """Handles mouse click actions (Left Click: Kick, Right Click: Push)."""
+        """Handles mouse click actions (Left Click: Kick/Grab, Right Click: Push/Clear)."""
         # ── Manipulation Mode ────────────────────────────────────────────────
         if self.manipulation_mode:
             if action == glfw.PRESS:
@@ -399,7 +424,7 @@ class BruceGameController:
                     is_double = (now - self._last_click_time) < 0.35
                     self._last_click_time = now
 
-                    # Ray cast to find body or floor
+                    # Ray cast to find clicked body or floor
                     cam_pos, ray_dir = self._cursor_to_ray(cx, cy, w, h)
                     geom_id = np.zeros(1, dtype=np.int32)
                     dist = mujoco.mj_ray(self.model, self.data, cam_pos, ray_dir,
@@ -411,9 +436,16 @@ class BruceGameController:
 
                     if hit_body in self.dynamic_body_ids:
                         self.dragging_body_id = hit_body
-                        floor_t = -cam_pos[2] / ray_dir[2] if abs(ray_dir[2]) > 1e-6 else 0.0
-                        floor_pt = cam_pos + floor_t * ray_dir
-                        self.drag_target_pos = floor_pt[:3].copy()
+                        jadr = self.model.body_jntadr[hit_body]
+                        vadr = self.model.jnt_dofadr[jadr]
+                        # Zero velocity immediately so object doesn't fly away
+                        self.data.qvel[vadr:vadr+6] = 0.0
+                        self.data.xfrc_applied[hit_body, :] = 0.0
+                        
+                        body_z = self.data.xpos[hit_body][2]
+                        self._drag_obj_z_offset = max(0.02, body_z)
+                        self.drag_target_pos = self.data.xpos[hit_body].copy()
+                        print(f"✋ Picked up {self.model.body(hit_body).name}")
                     elif is_double:
                         # Plant goal on floor
                         if abs(ray_dir[2]) > 1e-6:
@@ -431,6 +463,15 @@ class BruceGameController:
                     print("🎯 Nav goal cleared.")
 
             elif action == glfw.RELEASE and button == glfw.MOUSE_BUTTON_LEFT:
+                if self.dragging_body_id >= 0:
+                    bid = self.dragging_body_id
+                    jadr = self.model.body_jntadr[bid]
+                    vadr = self.model.jnt_dofadr[jadr]
+                    # Zero out all linear and angular velocities so object settles gently with 0 flying
+                    self.data.qvel[vadr:vadr+6] = 0.0
+                    self.data.xfrc_applied[bid, :] = 0.0
+                    pos = self.data.xpos[bid]
+                    print(f"📦 Placed {self.model.body(bid).name} at ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})")
                 self.dragging_body_id = -1
                 self.drag_target_pos = None
             return  # Don't process game actions in manipulation mode
@@ -1089,16 +1130,23 @@ class BruceGameController:
             z_err = target_z - self.data.xpos[self.base_body_id][2]
             self.data.qfrc_applied[2] = 95.0 * max(0.0, z_err) - 12.0 * self.data.qvel[2]
 
-        # ── Apply mouse-drag spring force ────────────────────────────────────
+        # ── Apply smooth mouse manipulation (Zero Catapult / Zero Flying) ────
         if self.dragging_body_id >= 0 and self.drag_target_pos is not None:
-            body_pos = self.data.xpos[self.dragging_body_id]
-            body_vel = (self.data.cvel[self.dragging_body_id, 0:3]
-                        if self.dragging_body_id < len(self.data.cvel)
-                        else np.zeros(3))
-            drag_f = 80.0 * (self.drag_target_pos - body_pos) - 12.0 * body_vel
-            self.data.xfrc_applied[self.dragging_body_id, :3] = np.clip(drag_f, -80, 80)
+            bid = self.dragging_body_id
+            jadr = self.model.body_jntadr[bid]
+            if jadr >= 0:
+                qadr = self.model.jnt_qposadr[jadr]
+                vadr = self.model.jnt_dofadr[jadr]
+
+                # Smoothly track target position without accumulating velocity
+                curr_pos = self.data.qpos[qadr : qadr + 3]
+                self.data.qpos[qadr : qadr + 3] += 0.25 * (self.drag_target_pos - curr_pos)
+
+                # Zero out linear and angular velocity while being carried so kinetic energy never builds up
+                self.data.qvel[vadr : vadr + 6] = 0.0
+                self.data.xfrc_applied[bid, :] = 0.0
         else:
-            # Clear any residual drag forces on dynamic bodies
+            # Clear any residual forces on dynamic bodies
             for bid in self.dynamic_body_ids:
                 self.data.xfrc_applied[bid, :] = 0.0
 

@@ -1,4 +1,4 @@
-<mujoco model="bruce interactive scene">
+<mujoco model="bruce it office scene">
   <include file="bruce.xml"/>
 
   <statistic center="0 0 0.5" extent="2.0"/>
@@ -13,171 +13,287 @@
   </default>
 
   <visual>
-    <headlight diffuse="0.7 0.7 0.7" ambient="0.3 0.3 0.3" specular="0.1 0.1 0.1"/>
-    <rgba haze="0.15 0.25 0.35 1"/>
-    <global azimuth="150" elevation="-25"/>
+    <headlight diffuse="0.30 0.30 0.30" ambient="0.15 0.15 0.15" specular="0.0 0.0 0.0"/>
+    <rgba haze="0.12 0.15 0.20 1"/>
+    <global azimuth="140" elevation="-25"/>
+    <quality shadowsize="2048"/>
   </visual>
 
   <asset>
-    <texture type="skybox" builtin="gradient" rgb1="0.35 0.55 0.75" rgb2="0.05 0.05 0.1" width="512" height="3072"/>
-    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.22 0.28 0.35" rgb2="0.14 0.18 0.24" markrgb="0.75 0.75 0.75" width="400" height="400"/>
-    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="12 12" reflectance="0.15"/>
+    <!-- Soft Sky Atmosphere -->
+    <texture type="skybox" builtin="gradient" rgb1="0.25 0.38 0.55" rgb2="0.06 0.08 0.12" width="512" height="3072"/>
     
-    <material name="wall_mat" specular="0.1" shininess="0.1" rgba="0.88 0.90 0.92 1"/>
-    <material name="wall_accent" specular="0.3" shininess="0.3" rgba="0.20 0.45 0.75 1"/>
-    <material name="wood_mat" specular="0.2" shininess="0.2" rgba="0.65 0.45 0.28 1"/>
-    <material name="metal_mat" specular="0.8" shininess="0.7" rgba="0.80 0.82 0.85 1"/>
-    <material name="barrel_mat" specular="0.5" shininess="0.4" rgba="0.95 0.55 0.10 1"/>
-    <material name="ball_mat" specular="0.6" shininess="0.5" rgba="0.95 0.22 0.20 1"/>
-    <material name="box_mat" specular="0.4" shininess="0.3" rgba="0.22 0.60 0.95 1"/>
-    <material name="obstacle_mat" specular="0.3" shininess="0.2" rgba="0.95 0.78 0.20 1"/>
-    <material name="target_mat" specular="0.5" shininess="0.5" rgba="0.20 0.88 0.45 1"/>
+    <!-- Floor Texture: Soft Grey Matte Office Floor (Reduced glare) -->
+    <texture type="2d" name="tex_floor" builtin="checker" mark="edge" rgb1="0.52 0.55 0.58" rgb2="0.44 0.46 0.49" markrgb="0.36 0.38 0.40" width="512" height="512"/>
+    <material name="mat_floor" texture="tex_floor" texuniform="true" texrepeat="12 12" specular="0.10" shininess="0.1" reflectance="0.0"/>
+
+    <!-- Furniture Materials -->
+    <material name="mat_table_wood" specular="0.2" shininess="0.2" rgba="0.60 0.40 0.24 1"/>
+    <material name="mat_table_metal" specular="0.5" shininess="0.5" rgba="0.22 0.23 0.25 1"/>
+    <material name="mat_chair_seat" specular="0.2" shininess="0.2" rgba="0.20 0.38 0.62 1"/>
+    <material name="mat_chair_frame" specular="0.6" shininess="0.5" rgba="0.75 0.77 0.80 1"/>
+    <material name="mat_wall" specular="0.08" shininess="0.08" rgba="0.75 0.77 0.80 1"/>
+    <material name="mat_wall_base" specular="0.2" shininess="0.2" rgba="0.28 0.30 0.32 1"/>
+
+    <!-- IT Equipment & Office Materials -->
+    <material name="mat_pc_black" specular="0.3" shininess="0.4" rgba="0.12 0.12 0.14 1"/>
+    <material name="mat_pc_screen" specular="0.8" shininess="0.8" rgba="0.16 0.35 0.58 1"/>
+    <material name="mat_server_rack" specular="0.4" shininess="0.4" rgba="0.14 0.15 0.17 1"/>
+    <material name="mat_server_slot" specular="0.2" shininess="0.2" rgba="0.22 0.24 0.28 1"/>
+    <material name="mat_led_green" specular="0.9" shininess="0.9" rgba="0.15 0.90 0.35 1"/>
+    <material name="mat_led_amber" specular="0.9" shininess="0.9" rgba="0.95 0.65 0.10 1"/>
+    <material name="mat_whiteboard" specular="0.5" shininess="0.5" rgba="0.95 0.96 0.98 1"/>
+    <material name="mat_sticky_yellow" specular="0.1" shininess="0.1" rgba="0.95 0.85 0.20 1"/>
+    <material name="mat_sticky_cyan" specular="0.1" shininess="0.1" rgba="0.20 0.75 0.88 1"/>
+    <material name="mat_cooler_white" specular="0.3" shininess="0.3" rgba="0.92 0.93 0.95 1"/>
+    <material name="mat_water_jug" specular="0.8" shininess="0.8" rgba="0.20 0.55 0.85 0.75"/>
+    <material name="mat_tap_blue" specular="0.3" shininess="0.3" rgba="0.15 0.45 0.85 1"/>
+    <material name="mat_tap_red" specular="0.3" shininess="0.3" rgba="0.85 0.20 0.15 1"/>
+    <material name="mat_coffee_mug" specular="0.5" shininess="0.5" rgba="0.92 0.92 0.95 1"/>
+
+    <!-- Dynamic Props Materials -->
+    <material name="mat_cardboard" specular="0.1" shininess="0.1" rgba="0.75 0.58 0.38 1"/>
+    <material name="mat_parcel_tape" specular="0.3" shininess="0.3" rgba="0.82 0.68 0.44 1"/>
+    <material name="mat_soccer_ball" specular="0.6" shininess="0.5" rgba="0.95 0.95 0.95 1"/>
+    <material name="mat_blue_box" specular="0.3" shininess="0.3" rgba="0.18 0.50 0.85 1"/>
+
+    <!-- Legacy Compatibility Material Names -->
+    <material name="wood_mat" specular="0.3" shininess="0.3" rgba="0.60 0.40 0.24 1"/>
+    <material name="metal_mat" specular="0.7" shininess="0.6" rgba="0.22 0.23 0.25 1"/>
+    <material name="barrel_mat" specular="0.5" shininess="0.4" rgba="0.14 0.15 0.17 1"/>
+    <material name="ball_mat" specular="0.6" shininess="0.5" rgba="0.95 0.95 0.95 1"/>
+    <material name="box_mat" specular="0.1" shininess="0.1" rgba="0.75 0.58 0.38 1"/>
+    <material name="target_mat" specular="0.1" shininess="0.1" rgba="0.75 0.58 0.38 1"/>
+    <material name="obstacle_mat" specular="0.3" shininess="0.3" rgba="0.20 0.38 0.62 1"/>
+    <material name="wall_mat" specular="0.1" shininess="0.1" rgba="0.75 0.77 0.80 1"/>
+    <material name="wall_accent" specular="0.3" shininess="0.3" rgba="0.20 0.38 0.62 1"/>
     <material name="goal_net_mat" specular="0.1" shininess="0.1" rgba="0.95 0.95 0.95 0.4"/>
   </asset>
 
   <worldbody>
-    <!-- Lighting -->
-    <light pos="0 0 6.0" dir="0 0 -1" directional="true" diffuse="0.85 0.85 0.85" specular="0.3 0.3 0.3" castshadow="true"/>
-    <light pos="4.0 -4.0 4.5" dir="-1 1 -1" directional="true" diffuse="0.45 0.45 0.45" castshadow="false"/>
-    <light pos="-4.0 4.0 4.5" dir="1 -1 -1" directional="true" diffuse="0.45 0.45 0.45" castshadow="false"/>
-
-    <!-- Arena Floor -->
-    <geom name="floor" size="25 25 0.05" type="plane" material="groundplane" condim="4"/>
+    <!-- Soft Studio Lighting (Comfortable brightness, no harsh glare) -->
+    <light pos="2.0 -3.0 6.0" dir="-0.3 0.4 -1.0" directional="true" diffuse="0.55 0.55 0.53" specular="0.12 0.12 0.12" castshadow="true"/>
+    <light pos="-3.0 3.0 5.0" dir="0.4 -0.3 -0.8" directional="true" diffuse="0.22 0.23 0.25" specular="0.05 0.05 0.05" castshadow="false"/>
 
     <!-- Cameras -->
-    <camera name="overview_cam" pos="2.5 -2.5 1.8" xyaxes="0.707 0.707 0 -0.35 0.35 0.87"/>
-    <camera name="front_cam" pos="2.2 0 0.7" xyaxes="0 1 0 -0.2 0 0.98"/>
-    <camera name="side_cam" pos="0 -2.5 0.8" xyaxes="1 0 0 0 0.25 0.97"/>
-    <camera name="follow_cam" mode="trackcom" pos="1.6 -1.4 1.0" xyaxes="0.75 0.66 0 -0.25 0.28 0.92"/>
+    <camera name="overview_cam" pos="3.0 -3.0 2.2" xyaxes="0.707 0.707 0 -0.35 0.35 0.87"/>
+    <camera name="front_cam" pos="2.4 0 0.8" xyaxes="0 1 0 -0.2 0 0.98"/>
+    <camera name="side_cam" pos="0 -2.8 0.9" xyaxes="1 0 0 0 0.25 0.97"/>
+    <camera name="follow_cam" mode="trackcom" pos="1.8 -1.4 1.0" xyaxes="0.75 0.66 0 -0.25 0.28 0.92"/>
+
+    <!-- Arena Floor (14m x 14m) -->
+    <geom name="floor" size="14 14 0.05" type="plane" material="mat_floor" condim="4"/>
+
+    <!-- Clean Perimeter Walls (North, South, East, West) -->
+    <geom name="wall_north" pos="0  7.0 0.35" size="7.0 0.08 0.35" type="box" material="mat_wall"/>
+    <geom name="wall_south" pos="0 -7.0 0.35" size="7.0 0.08 0.35" type="box" material="mat_wall"/>
+    <geom name="wall_east"  pos=" 7.0 0 0.35" size="0.08 7.0 0.35" type="box" material="mat_wall"/>
+    <geom name="wall_west"  pos="-7.0 0 0.35" size="0.08 7.0 0.35" type="box" material="mat_wall"/>
 
     <!-- ======================================================= -->
-    <!-- SECTION 1: INDOOR ROBOTICS LAB & OFFICE (X < 0)         -->
-    <!-- Designed for 2D/3D SLAM Benchmarking & Room Mapping     -->
+    <!-- REALISTIC IT OFFICE FURNITURE & FIXTURES                -->
+    <!-- Scaled proportionally to BRUCE (0.45m humanoid)         -->
     <!-- ======================================================= -->
 
-    <!-- Main Dividing Wall between Indoor Lab and Obstacle Course -->
-    <geom name="div_wall_north" pos="-1.5 3.2 0.5" size="0.1 2.8 0.5" type="box" material="wall_mat"/>
-    <geom name="div_wall_south" pos="-1.5 -3.2 0.5" size="0.1 2.8 0.5" type="box" material="wall_mat"/>
-    <!-- Central Entrance Doorway opening at X = -1.5, Y in [-0.5, 0.5] (1.0m doorway) -->
+    <!-- 1. DEVELOPER WORKSTATION (North-East Desk) -->
+    <body name="developer_desk" pos="2.8 1.4 0">
+      <!-- Desk Table Top (Z=0.38m) -->
+      <geom name="d_top" pos="0 0 0.38" size="0.45 0.30 0.02" type="box" material="mat_table_wood" condim="4"/>
+      <!-- 4 Metal Desk Legs -->
+      <geom name="d_leg_fl" pos=" 0.38  0.24 0.18" size="0.025 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="d_leg_fr" pos=" 0.38 -0.24 0.18" size="0.025 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="d_leg_bl" pos="-0.38  0.24 0.18" size="0.025 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="d_leg_br" pos="-0.38 -0.24 0.18" size="0.025 0.18" type="cylinder" material="mat_table_metal"/>
 
-    <!-- Corridor North Wall -->
-    <geom name="corridor_wall_n1" pos="-4.5 1.0 0.5" size="3.0 0.08 0.5" type="box" material="wall_mat"/>
-    <geom name="corridor_wall_n2" pos="-9.0 1.0 0.5" size="1.2 0.08 0.5" type="box" material="wall_mat"/>
-    <!-- Doorway to Lab Room 1 at X = -7.6, Y = 1.0 (0.8m wide) -->
+      <!-- Desktop Developer PC Tower -->
+      <geom name="d_pc_tower" pos="0.32 0.16 0.50" size="0.08 0.16 0.10" type="box" material="mat_pc_black"/>
+      <geom name="d_pc_led" pos="0.238 0.16 0.56" size="0.002 0.01 0.01" type="box" material="mat_led_green"/>
 
-    <!-- Corridor South Wall -->
-    <geom name="corridor_wall_s1" pos="-4.5 -1.0 0.5" size="3.0 0.08 0.5" type="box" material="wall_mat"/>
-    <geom name="corridor_wall_s2" pos="-9.0 -1.0 0.5" size="1.2 0.08 0.5" type="box" material="wall_mat"/>
-    <!-- Doorway to Equipment Room 2 at X = -7.6, Y = -1.0 (0.8m wide) -->
+      <!-- Primary Wide Developer Monitor (Code Editor Glow) -->
+      <geom name="d_mon_stand" pos="-0.10 0.12 0.43" size="0.06 0.05 0.03" type="box" material="mat_pc_black"/>
+      <geom name="d_mon_frame" pos="-0.10 0.10 0.52" size="0.20 0.012 0.12" type="box" material="mat_pc_black"/>
+      <geom name="d_mon_screen" pos="-0.10 0.087 0.52" size="0.18 0.002 0.10" type="box" material="mat_pc_screen"/>
 
-    <!-- West Perimeter Wall -->
-    <geom name="west_perimeter_wall" pos="-10.5 0 0.5" size="0.1 5.5 0.5" type="box" material="wall_mat"/>
-    <!-- North Perimeter Wall of Lab Section -->
-    <geom name="north_perimeter_wall" pos="-6.0 5.5 0.5" size="4.6 0.1 0.5" type="box" material="wall_mat"/>
-    <!-- South Perimeter Wall of Lab Section -->
-    <geom name="south_perimeter_wall" pos="-6.0 -5.5 0.5" size="4.6 0.1 0.5" type="box" material="wall_mat"/>
+      <!-- Keyboard, Mousepad & Coffee Mug -->
+      <geom name="d_keyboard" pos="-0.10 -0.10 0.402" size="0.16 0.06 0.004" type="box" material="mat_pc_black"/>
+      <geom name="d_mousepad" pos="0.14 -0.10 0.401" size="0.06 0.07 0.002" type="box" material="mat_pc_black"/>
+      <geom name="d_coffee_mug" pos="0.25 -0.05 0.43" size="0.028 0.035" type="cylinder" material="mat_coffee_mug"/>
+    </body>
 
-    <!-- Internal Partition Wall in Lab Room 1 -->
-    <geom name="lab_partition_1" pos="-5.5 3.5 0.4" size="1.8 0.08 0.4" type="box" material="wall_accent"/>
+    <!-- Developer Office Chair (at Developer Desk) - Movable Obstacle -->
+    <body name="chair_2" pos="2.8 0.85 0.0">
+      <freejoint name="chair_2_joint"/>
+      <inertial pos="0 0 0.14" mass="2.2" diaginertia="0.04 0.04 0.03"/>
+      <!-- 4 Legs with Contact Foot Spheres -->
+      <geom name="c2_leg_fl" pos=" 0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_leg_fr" pos=" 0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_leg_bl" pos="-0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_leg_br" pos="-0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_foot_fl" pos=" 0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c2_foot_fr" pos=" 0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c2_foot_bl" pos="-0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c2_foot_br" pos="-0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <!-- Padded Seat Cushion (Z=0.20m) -->
+      <geom name="c2_seat" pos="0 0 0.20" size="0.16 0.16 0.02" type="box" material="mat_chair_seat" condim="4"/>
+      <!-- Backrest Uprights & Panel (Z=0.38m) -->
+      <geom name="c2_back_l" pos="-0.14  0.12 0.29" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_back_r" pos="-0.14 -0.12 0.29" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c2_backrest" pos="-0.14 0 0.38" size="0.015 0.14 0.06" type="box" material="mat_chair_seat"/>
+    </body>
 
-    <!-- Furniture: Lab Workstation Benches -->
-    <geom name="lab_table_1" pos="-8.5 3.5 0.22" size="0.6 1.4 0.22" type="box" material="wood_mat"/>
-    <geom name="lab_table_2" pos="-8.5 -3.5 0.22" size="0.6 1.4 0.22" type="box" material="wood_mat"/>
-    <geom name="lab_shelf_1" pos="-4.0 -4.5 0.35" size="1.2 0.35 0.35" type="box" material="metal_mat"/>
+    <!-- 2. STANDALONE TASK CHAIR - Movable Obstacle -->
+    <!-- Drag this chair directly into BRUCE's path to test dynamic obstacle avoidance -->
+    <body name="chair_1" pos="1.8 -0.45 0.0">
+      <freejoint name="chair_1_joint"/>
+      <inertial pos="0 0 0.14" mass="2.2" diaginertia="0.04 0.04 0.03"/>
+      <!-- 4 Legs with Contact Foot Spheres -->
+      <geom name="c1_leg_fl" pos=" 0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_leg_fr" pos=" 0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_leg_bl" pos="-0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_leg_br" pos="-0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_foot_fl" pos=" 0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c1_foot_fr" pos=" 0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c1_foot_bl" pos="-0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c1_foot_br" pos="-0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <!-- Padded Seat Cushion (Z=0.20m) -->
+      <geom name="c1_seat" pos="0 0 0.20" size="0.16 0.16 0.02" type="box" material="mat_chair_seat" condim="4"/>
+      <!-- Backrest Uprights & Panel (Z=0.38m) -->
+      <geom name="c1_back_l" pos="-0.14  0.12 0.29" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_back_r" pos="-0.14 -0.12 0.29" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c1_backrest" pos="-0.14 0 0.38" size="0.015 0.14 0.06" type="box" material="mat_chair_seat"/>
+    </body>
 
-    <!-- Visual SLAM Landmark Columns / Features -->
-    <geom name="landmark_col_1" pos="-3.5 3.5 0.45" size="0.12 0.45" type="cylinder" material="wall_accent"/>
-    <geom name="landmark_col_2" pos="-3.5 -3.5 0.45" size="0.12 0.45" type="cylinder" material="barrel_mat"/>
+    <!-- 3. IT SERVER RACK & NETWORK CABINET -->
+    <!-- Authentic enterprise server rack with rack blades and LED strips -->
+    <body name="it_server_rack" pos="1.2 2.6 0">
+      <!-- Main Cabinet Tower -->
+      <geom name="sr_body" pos="0 0 0.44" size="0.22 0.22 0.44" type="box" material="mat_server_rack" condim="4"/>
+      <!-- Rack Blade Units -->
+      <geom name="sr_slot_1" pos="0.222 0 0.68" size="0.004 0.19 0.07" type="box" material="mat_server_slot"/>
+      <geom name="sr_slot_2" pos="0.222 0 0.50" size="0.004 0.19 0.07" type="box" material="mat_server_slot"/>
+      <geom name="sr_slot_3" pos="0.222 0 0.32" size="0.004 0.19 0.07" type="box" material="mat_server_slot"/>
+      <geom name="sr_slot_4" pos="0.222 0 0.14" size="0.004 0.19 0.07" type="box" material="mat_server_slot"/>
+      <!-- Network Activity Status LEDs -->
+      <geom name="sr_led_1" pos="0.227 -0.14 0.70" size="0.002 0.008 0.008" type="box" material="mat_led_green"/>
+      <geom name="sr_led_2" pos="0.227 -0.11 0.70" size="0.002 0.008 0.008" type="box" material="mat_led_green"/>
+      <geom name="sr_led_3" pos="0.227 -0.14 0.52" size="0.002 0.008 0.008" type="box" material="mat_led_green"/>
+      <geom name="sr_led_4" pos="0.227 -0.11 0.52" size="0.002 0.008 0.008" type="box" material="mat_led_amber"/>
+    </body>
+
+    <!-- 4. OFFICE WATER COOLER & DISPENSER -->
+    <!-- The iconic IT office water cooler landmark -->
+    <body name="water_cooler" pos="0.9 -1.6 0">
+      <!-- White Dispenser Pedestal Base -->
+      <geom name="wc_base" pos="0 0 0.22" size="0.12 0.12 0.22" type="box" material="mat_cooler_white" condim="4"/>
+      <!-- Dispensing Nook -->
+      <geom name="wc_nook" pos="0.08 0 0.26" size="0.045 0.07 0.06" type="box" material="mat_pc_black"/>
+      <geom name="wc_tap_c" pos="0.09  0.03 0.30" size="0.01 0.015" type="cylinder" material="mat_tap_blue"/>
+      <geom name="wc_tap_h" pos="0.09 -0.03 0.30" size="0.01 0.015" type="cylinder" material="mat_tap_red"/>
+      <!-- Blue Inverted Water Jug Bottle -->
+      <geom name="wc_jug" pos="0 0 0.56" size="0.10 0.12" type="cylinder" material="mat_water_jug"/>
+      <geom name="wc_jug_top" pos="0 0 0.68" size="0.09" type="sphere" material="mat_water_jug"/>
+    </body>
+
+    <!-- 5. AGILE / SCRUM WHITEBOARD -->
+    <!-- Whiteboard with colorful sprint task sticky notes -->
+    <body name="scrum_whiteboard" pos="3.8 2.5 0">
+      <!-- Aluminum Frame & Legs -->
+      <geom name="wb_stand_l" pos="-0.40 0 0.35" size="0.015 0.015 0.35" type="box" material="mat_chair_frame"/>
+      <geom name="wb_stand_r" pos=" 0.40 0 0.35" size="0.015 0.015 0.35" type="box" material="mat_chair_frame"/>
+      <geom name="wb_feet_l" pos="-0.40 0 0.02" size="0.02 0.18 0.02" type="box" material="mat_chair_frame"/>
+      <geom name="wb_feet_r" pos=" 0.40 0 0.02" size="0.02 0.18 0.02" type="box" material="mat_chair_frame"/>
+      <!-- Whiteboard Surface -->
+      <geom name="wb_board" pos="0 0 0.48" size="0.44 0.015 0.24" type="box" material="mat_whiteboard" condim="4"/>
+      <!-- Colorful Sticky Notes (Sprint backlog, In-Progress, Done) -->
+      <geom name="wb_sticky_1" pos="-0.26 -0.018 0.55" size="0.035 0.002 0.035" type="box" material="mat_sticky_yellow"/>
+      <geom name="wb_sticky_2" pos="-0.16 -0.018 0.55" size="0.035 0.002 0.035" type="box" material="mat_sticky_cyan"/>
+      <geom name="wb_sticky_3" pos=" 0.02 -0.018 0.45" size="0.035 0.002 0.035" type="box" material="mat_sticky_yellow"/>
+      <geom name="wb_sticky_4" pos=" 0.22 -0.018 0.52" size="0.035 0.002 0.035" type="box" material="mat_sticky_cyan"/>
+    </body>
+
+    <!-- 6. CONFERENCE / TEAM SYNC TABLE -->
+    <!-- Large meeting table with side chairs (South-East Area) -->
+    <body name="meeting_table" pos="4.2 -1.4 0">
+      <geom name="mt_top" pos="0 0 0.38" size="0.65 0.35 0.02" type="box" material="mat_table_wood" condim="4"/>
+      <geom name="mt_leg_fl" pos=" 0.58  0.28 0.18" size="0.028 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="mt_leg_fr" pos=" 0.58 -0.28 0.18" size="0.028 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="mt_leg_bl" pos="-0.58  0.28 0.18" size="0.028 0.18" type="cylinder" material="mat_table_metal"/>
+      <geom name="mt_leg_br" pos="-0.58 -0.28 0.18" size="0.028 0.18" type="cylinder" material="mat_table_metal"/>
+    </body>
+
+    <!-- Conference Chair North - Movable Obstacle -->
+    <body name="chair_3" pos="4.2 -0.85 0.0">
+      <freejoint name="chair_3_joint"/>
+      <inertial pos="0 0 0.14" mass="2.2" diaginertia="0.04 0.04 0.03"/>
+      <geom name="c3_leg_fl" pos=" 0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_leg_fr" pos=" 0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_leg_bl" pos="-0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_leg_br" pos="-0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_foot_fl" pos=" 0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c3_foot_fr" pos=" 0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c3_foot_bl" pos="-0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c3_foot_br" pos="-0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c3_seat" pos="0 0 0.20" size="0.16 0.16 0.02" type="box" material="mat_chair_seat" condim="4"/>
+      <geom name="c3_back_l" pos="0.12 -0.14 0.29" quat="0.707 0 0 0.707" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_back_r" pos="-0.12 -0.14 0.29" quat="0.707 0 0 0.707" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c3_backrest" pos="0 -0.14 0.38" size="0.14 0.015 0.06" type="box" material="mat_chair_seat"/>
+    </body>
+
+    <!-- Conference Chair South - Movable Obstacle -->
+    <body name="chair_4" pos="4.2 -1.95 0.0">
+      <freejoint name="chair_4_joint"/>
+      <inertial pos="0 0 0.14" mass="2.2" diaginertia="0.04 0.04 0.03"/>
+      <geom name="c4_leg_fl" pos=" 0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_leg_fr" pos=" 0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_leg_bl" pos="-0.12  0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_leg_br" pos="-0.12 -0.12 0.105" size="0.014 0.085" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_foot_fl" pos=" 0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c4_foot_fr" pos=" 0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c4_foot_bl" pos="-0.12  0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c4_foot_br" pos="-0.12 -0.12 0.018" size="0.018" type="sphere" material="mat_chair_frame" condim="4" friction="0.6 0.01 0.001"/>
+      <geom name="c4_seat" pos="0 0 0.20" size="0.16 0.16 0.02" type="box" material="mat_chair_seat" condim="4"/>
+      <geom name="c4_back_l" pos="0.12  0.14 0.29" quat="0.707 0 0 0.707" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_back_r" pos="-0.12  0.14 0.29" quat="0.707 0 0 0.707" size="0.012 0.09" type="cylinder" material="mat_chair_frame"/>
+      <geom name="c4_backrest" pos="0  0.14 0.38" size="0.14 0.015 0.06" type="box" material="mat_chair_seat"/>
+    </body>
 
     <!-- ======================================================= -->
-    <!-- SECTION 2: OBSTACLE PLAYGROUND & ARENA (X > 0)          -->
-    <!-- Multi-Tier Stairs, Incline Ramp, Soccer Goal & Props    -->
+    <!-- DELIVERY DESTINATION TABLE (place_table API)            -->
+    <!-- Package delivery / reception table at end of walkway   -->
     <!-- ======================================================= -->
-
-    <!-- 1. Multi-Tier Wooden Staircase (3 steps + landing platform) -->
-    <geom name="stair_step_1" pos="3.0 2.0 0.04" size="0.30 0.60 0.04" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
-    <geom name="stair_step_2" pos="3.5 2.0 0.08" size="0.30 0.60 0.08" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
-    <geom name="stair_step_3" pos="4.0 2.0 0.12" size="0.30 0.60 0.12" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
-    <geom name="stair_platform" pos="4.6 2.0 0.16" size="0.40 0.60 0.16" type="box" material="wood_mat" friction="1.2 0.01 0.001"/>
-
-    <!-- 2. Incline Ramp (12-degree slope) leading up to elevated platform -->
-    <geom name="incline_ramp" pos="3.2 -2.0 0.08" quat="0.994 0 0.105 0" size="0.65 0.55 0.04" type="box" material="obstacle_mat" friction="1.4 0.01 0.001"/>
-    <geom name="ramp_landing" pos="4.2 -2.0 0.15" size="0.45 0.55 0.15" type="box" material="obstacle_mat" friction="1.4 0.01 0.001"/>
-
-    <!-- 3. Soccer Goal Net at X = 5.2m -->
-    <!-- Left Post -->
-    <geom name="goal_post_l" pos="5.2 -1.1 0.45" size="0.04 0.45" type="cylinder" material="metal_mat"/>
-    <!-- Right Post -->
-    <geom name="goal_post_r" pos="5.2 1.1 0.45" size="0.04 0.45" type="cylinder" material="metal_mat"/>
-    <!-- Crossbar -->
-    <geom name="goal_crossbar" pos="5.2 0.0 0.90" quat="0.7071 0.7071 0 0" size="0.04 1.1" type="cylinder" material="metal_mat"/>
-    <!-- Goal Back Net / Wall -->
-    <geom name="goal_back_wall" pos="5.8 0.0 0.45" size="0.05 1.15 0.45" type="box" material="goal_net_mat"/>
-
-    <!-- Target Goal Center Marker -->
-    <site name="goal_target" pos="5.3 0 0.01" size="0.35 0.01" type="cylinder" material="target_mat"/>
+    <body name="place_table" pos="5.2 0.3 0">
+      <geom name="table_surface" type="box" size="0.45 0.32 0.025" pos="0 0 0.40" material="mat_table_wood" condim="4" friction="0.9 0.01 0.0002"/>
+      <geom name="table_leg_fl" type="cylinder" size="0.025 0.19" pos=" 0.38  0.26 0.19" material="mat_table_metal"/>
+      <geom name="table_leg_fr" type="cylinder" size="0.025 0.19" pos=" 0.38 -0.26 0.19" material="mat_table_metal"/>
+      <geom name="table_leg_bl" type="cylinder" size="0.025 0.19" pos="-0.38  0.26 0.19" material="mat_table_metal"/>
+      <geom name="table_leg_br" type="cylinder" size="0.025 0.19" pos="-0.38 -0.26 0.19" material="mat_table_metal"/>
+    </body>
 
     <!-- ======================================================= -->
-    <!-- DYNAMIC INTERACTIVE OBJECTS (WITH RIGID BODY DYNAMICS)   -->
+    <!-- DYNAMIC INTERACTIVE PROPS (KICK, PUSH, PICK & PLACE)    -->
     <!-- ======================================================= -->
 
-    <!-- Dynamic Soccer Ball positioned 1.25m in front of BRUCE -->
-    <body name="soccer_ball" pos="1.25 -0.076 0.06">
+    <!-- Office Stress / Soccer Ball (Pushable / Kickable) -->
+    <body name="soccer_ball" pos="1.25 0.35 0.06">
       <freejoint name="ball_joint"/>
       <inertial pos="0 0 0" mass="0.15" diaginertia="0.0004 0.0004 0.0004"/>
-      <geom name="soccer_ball_geom" type="sphere" size="0.055" material="ball_mat" condim="4" friction="0.8 0.005 0.0001" solref="0.005 1"/>
+      <geom name="soccer_ball_geom" type="sphere" size="0.055" material="mat_soccer_ball" condim="4" friction="0.85 0.005 0.0001" solref="0.005 1"/>
     </body>
 
-    <!-- Dynamic Target Box 1 (Blue Crate) -->
-    <body name="target_box" pos="1.90 0.35 0.06">
-      <freejoint name="box_joint"/>
-      <inertial pos="0 0 0" mass="0.4" diaginertia="0.001 0.001 0.001"/>
-      <geom name="target_box_geom" type="box" size="0.06 0.06 0.06" material="box_mat" condim="4" friction="0.9 0.01 0.0002"/>
-    </body>
-
-    <!-- Dynamic Target Box 2 (Larger Pushable Box) -->
-    <body name="target_box_2" pos="2.40 0.85 0.09">
-      <freejoint name="box_2_joint"/>
-      <inertial pos="0 0 0" mass="0.65" diaginertia="0.002 0.002 0.002"/>
-      <geom name="target_box_2_geom" type="box" size="0.09 0.09 0.09" material="wall_accent" condim="4" friction="0.85 0.01 0.0002"/>
-    </body>
-
-    <!-- Dynamic Industrial Barrel 1 -->
-    <body name="barrel_1" pos="2.80 -0.85 0.12">
-      <freejoint name="barrel_1_joint"/>
-      <inertial pos="0 0 0" mass="0.8" diaginertia="0.003 0.003 0.003"/>
-      <geom name="barrel_1_geom" type="cylinder" size="0.08 0.12" material="barrel_mat" condim="4" friction="0.75 0.01 0.0002"/>
-    </body>
-
-    <!-- Obstacle Step Block in Playground Runway -->
-    <body name="obstacle_block" pos="2.60 -0.35 0.05">
-      <freejoint name="obstacle_joint"/>
-      <inertial pos="0 0 0" mass="0.8" diaginertia="0.003 0.003 0.003"/>
-      <geom name="obstacle_geom" type="box" size="0.08 0.12 0.05" material="obstacle_mat" condim="4" friction="1.0 0.01 0.0002"/>
-    </body>
-
-    <!-- ======================================================= -->
-    <!-- PICK-AND-PLACE FURNITURE: TABLE & GRASPABLE OBJECTS     -->
-    <!-- ======================================================= -->
-
-    <!-- Delivery Table: fixed platform where robot can place objects -->
-    <body name="place_table" pos="4.5 -1.0 0.0">
-      <geom name="table_surface" type="box" size="0.50 0.35 0.22" pos="0 0 0.22" material="wood_mat"
-            condim="4" friction="0.9 0.01 0.0002"/>
-      <geom name="table_leg_fl" type="cylinder" size="0.03 0.22" pos=" 0.44  0.32 0.22" material="metal_mat"/>
-      <geom name="table_leg_fr" type="cylinder" size="0.03 0.22" pos=" 0.44 -0.32 0.22" material="metal_mat"/>
-      <geom name="table_leg_bl" type="cylinder" size="0.03 0.22" pos="-0.44  0.32 0.22" material="metal_mat"/>
-      <geom name="table_leg_br" type="cylinder" size="0.03 0.22" pos="-0.44 -0.32 0.22" material="metal_mat"/>
-    </body>
-
-    <!-- Small Graspable Crate (pick-and-place target, lighter than target_box) -->
-    <body name="pickup_crate" pos="2.0 -1.2 0.045">
+    <!-- Hardware Delivery Courier Box (pickup_crate) -->
+    <body name="pickup_crate" pos="1.8 -1.1 0.05">
       <freejoint name="pickup_crate_joint"/>
       <inertial pos="0 0 0" mass="0.25" diaginertia="0.0008 0.0008 0.0008"/>
-      <geom name="pickup_crate_geom" type="box" size="0.045 0.045 0.045" material="target_mat"
-            condim="4" friction="0.95 0.01 0.0002"/>
+      <geom name="pickup_crate_geom" type="box" size="0.05 0.05 0.05" material="mat_cardboard" condim="4" friction="0.95 0.01 0.0002"/>
+      <geom name="pickup_crate_tape" pos="0 0 0.051" size="0.05 0.015 0.001" type="box" material="mat_parcel_tape"/>
+    </body>
+
+    <!-- Pushable IT Equipment Box (target_box) -->
+    <body name="target_box" pos="2.4 0.15 0.07">
+      <freejoint name="box_joint"/>
+      <inertial pos="0 0 0" mass="0.45" diaginertia="0.0012 0.0012 0.0012"/>
+      <geom name="target_box_geom" type="box" size="0.07 0.07 0.07" material="mat_blue_box" condim="4" friction="0.90 0.01 0.0002"/>
     </body>
 
   </worldbody>
 </mujoco>
-

@@ -240,3 +240,19 @@ cd /home/ncircle/Desktop/westwood/Bruce/BRUCE_simulation_models
   - Complete ROS 2 topic catalog with types, frequencies, and descriptions.
   - Repository directory tree and troubleshooting FAQ.
   - Clickable markdown links to all project documents, scripts, and specifications.
+
+---
+
+## 8. User Request 11: Real-World Environment Overhaul (Client Familiarity)
+
+- **User Request:** Transform abstract simulation blocks, ramps, and boxes into realistic objects (chairs, tables, buildings, trees) so clients immediately recognize real-world operation.
+- **Implementation:**
+  - Designed the **Hybrid Tech Campus & Executive Office** ($25 \times 25\,\text{m}$):
+    - **Indoor Executive Suite ($X < 0$)**: Polished oak wood and commercial tile flooring, mahogany executive desks with dual monitors and keyboards, bookshelves with multi-colored volumes, floor-to-ceiling glass partition walls with aluminum framing, and server equipment cabinets.
+    - **Dynamic Rolling Office Chairs**: Modeled 5-star caster wheel bases with 5 spherical rolling caster wheels, chrome lift columns, cushioned seats, armrests, and contoured backrests (`office_chair_1` & `office_chair_2`) with active `freejoint` dynamics for physical pushing and mouse dragging.
+    - **Outdoor Tech Courtyard ($X > 0$)**: Lush green turf lawns, cobblestone paver paths, botanical trees with multi-tier canopies and sturdy trunks, slatted mahogany park benches with cast iron legs, patio bistro tables with overhead sun parasols, street lampposts, and multi-story corporate building facades with tinted ribbon windows and roof parapets.
+    - **Real-World Demonstration Props**: Kraft cardboard courier delivery boxes (`pickup_crate` & `target_box`) with tape and shipping labels, regulation soccer ball (`soccer_ball`), planter barrel, and curb stone.
+  - **Controller & Navigation Compatibility**:
+    - Registered chairs and courier boxes in `self.dynamic_body_ids`.
+    - Preserved 60+ FPS rendering and 1,000 Hz physics stepping with zero NaN errors.
+    - Verified multi-elevation LiDAR obstacle avoidance and A* path planning seamlessly finding paths through office doorways (26 waypoints) and across the courtyard (16 waypoints).

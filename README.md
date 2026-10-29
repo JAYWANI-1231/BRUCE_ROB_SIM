@@ -48,12 +48,18 @@ This repository provides an end-to-end simulation environment operating on a **d
   - Dynamic arm swing counterbalancing leg strides with phase-coupled elbow bending.
   - Zero backward drift: $>35\,\text{mm}$ knee lift and dynamic counter-pitch moment compensation ($\tau = -F_{\text{propel}} \cdot 0.22\,\text{Nm}$).
   - Multi-state postures: Active balance `STAND`, `WALK`, `SPRINT`, `CROUCH`, `CROUCH-WALK`, and 4-phase dynamic `JUMP`.
+* **🏢 Simplified, Lightweight Real-World Office Environment**:
+  - **Clean $14 \times 14\,\text{m}$ Arena**: High-contrast neutral floor with boundary perimeter walls and balanced lighting for maximum clarity and client demonstrations.
+  - **Authentic Furniture Obstacles**: Office desks with wooden tops on 4 cylindrical legs, conference tables, and chairs with blue cushioned seats and backrests, sized proportionally to the $0.45\,\text{m}$ humanoid robot.
+  - **Flawless Obstacle Avoidance**: Multi-elevation 3D LiDAR ($Z=0.05\,\text{m}, 0.16\,\text{m}, 0.35\,\text{m}$) scans table legs, chair legs, and seats; inline A* planner routes smooth detour paths with $>1.0\,\text{m}$ clearance.
+  - **Ultra-Lightweight Performance**: Only 29 bodies and 79 geoms, ensuring instant loading and guaranteed rock-solid 60+ FPS rendering.
 * **⚽ Dynamic Physical Interactions**:
   - **Soccer Kick**: 3-phase leg swing with stance balance, launching dynamic balls with $>50\,\text{N}$ force.
   - **Obstacle Push**: Power forward stance driving against crates and industrial barrels.
   - **Gesture**: Friendly arm wave greeting.
-* **🖱️ Live Environment Manipulation**:
-  - Press `M` to toggle Manipulation Mode. Left-click and drag dynamic objects across the arena floor in real time.
+* **🖱️ Live Environment Manipulation & Movable Obstacles**:
+  - Press `M` to toggle Manipulation Mode. Left-click and drag dynamic objects (office chairs, delivery crates, soccer ball) across the arena floor in real time.
+  - **Live Dynamic Obstacle Testing**: Drag any office chair directly into BRUCE's path while the robot is navigating; BRUCE's real-time LiDAR will instantly detect the new obstacle and calculate an evasive detour path around it on the fly!
 * **🧭 Autonomous Navigation & Obstacle Avoidance**:
   - Double-click the floor to plant a glowing green **Goal Marker**.
   - Multi-elevation 3D LiDAR (270 rays across 3 vertical heights: $0.05\,\text{m}$, $0.16\,\text{m}$, $0.35\,\text{m}$) with full-skeleton self-hit filtering.

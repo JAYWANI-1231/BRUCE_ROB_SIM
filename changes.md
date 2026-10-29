@@ -270,3 +270,70 @@ This document maintains a chronological record of all file creations, modificati
   - Root [`README.md`](file:///home/ncircle/Desktop/westwood/Bruce/BRUCE_simulation_models/README.md) authored conforming to top-tier open-source robotics repositories.
   - Added Shields.io status badges, Mermaid architecture flowchart, Markdown feature matrix, input controls table, ROS 2 topic catalog, directory structure, troubleshooting FAQ, and documentation cross-links.
 
+---
+
+## 23. Change 23: Simplified Lightweight Real-World Office Environment (Tables & Chairs Obstacle Avoidance)
+
+- **Date & Context**: 2026-10-29
+- **Problem & Goal**: Replace both abstract geometric shapes and overly complex multi-room/city assets with a clean, lightweight, minimalist real-world environment. Focus on recognizable office furniture (tables and chairs) that BRUCE can clearly identify and avoid during autonomous navigation, making client demonstrations simple, intuitive, and high-performance.
+- **Architectural & Asset Design (`interactive_scene.xml`)**:
+  - **Clean $14 \times 14\,\text{m}$ Arena**:
+    - Neutral light-gray grid floor (`mat_floor`) and clean low perimeter walls (`mat_wall`).
+    - Soft directional sunlight and ambient fill lighting.
+  - **Recognizable Furniture Obstacles (Proportionally Scaled to 0.45m BRUCE)**:
+    - **Office Desk (`office_desk_1`)**: Sized at $0.90 \times 0.60\,\text{m}$ wooden top ($Z = 0.38\,\text{m}$) supported by 4 cylindrical metal legs at $(2.8, 1.4, 0)$.
+    - **Single Office Chair (`chair_1`)**: Direct navigation obstacle at $(1.8, -0.45, 0)$ featuring 4 legs, blue padded seat ($Z = 0.20\,\text{m}$), and supportive backrest ($Z = 0.38\,\text{m}$).
+    - **Desk Chair (`chair_2`)**: Positioned at desk 1 at $(2.8, 0.85, 0)$.
+    - **Conference Meeting Table (`meeting_table`)**: Extended table ($1.30 \times 0.70\,\text{m}$) at $(4.2, -1.4, 0)$ with north and south chairs (`chair_3`, `chair_4`).
+    - **Destination Table (`place_table`)**: Clean table at $(5.2, 0.3, 0)$ acting as navigation goal and pick-and-place destination.
+  - **Dynamic Interactive Props**:
+    - Regulation soccer ball (`soccer_ball`) at $(1.25, 0.35, 0.06)$ (pushable/kickable).
+    - Courier parcel box (`pickup_crate`) at $(1.8, -1.1, 0.05)$ and pushable box (`target_box`) at $(2.4, 0.15, 0.07)$.
+- **Comfortable Lighting & Anti-Glare Calibration**:
+  - Toned down camera headlight diffuse/ambient from $(0.70, 0.35)$ to $(0.30, 0.15)$ with zero specular reflection.
+  - Dimmed key sun directional light from $0.90$ to $0.55$ and ambient fill light to $0.22$.
+  - Replaced stark white floor with a soft matte slate-grey floor (`reflectance=0`, `specular=0.10`), eliminating harsh glare.
+  - Tested mean camera frame brightness reduced from $185.1$ to a balanced, comfortable $86.4$ ($122.8$ in overview).
+- **Lightweight Kinematics & Flawless Navigation**:
+  - Reduced total scene complexity to 29 bodies and 79 geoms, ensuring maximum 60+ FPS rendering and instant loading.
+  - Multi-elevation LiDAR ($Z = 0.05\,\text{m}, 0.16\,\text{m}, 0.35\,\text{m}$) hits chair legs, table legs, seats, and tops without blind spots.
+  - A* path planner tested navigating to goal behind the furniture: cleanly routed around `chair_1` and `office_desk_1` with $>1.0\,\text{m}$ clearance and zero collisions.
+
+---
+
+## 24. Change 24: 6-DOF Movable Office Chairs for Live Dynamic Obstacle Placement
+
+- **Date & Context**: 2026-10-29
+- **Problem & Goal**: Allow users and clients to interactively drag office chairs anywhere across the simulation floor in real time, placing new obstacles in the robot's walking path to test and demonstrate dynamic online obstacle avoidance.
+- **Implementation**:
+  - **Dynamic Freejoints on All Chairs**:
+    - Converted `chair_1`, `chair_2`, `chair_3`, and `chair_4` into 6-DOF dynamic rigid bodies via `<freejoint>`.
+    - Added `<inertial pos="0 0 0.14" mass="2.2" diaginertia="0.04 0.04 0.03"/>` with low center of gravity to prevent tipping over during manipulation.
+    - Added 4 smooth contact foot pads (`condim="4"`, `friction="0.6"`) at the base of each leg for stable, wobble-free sliding.
+  - **Interactive Drag-and-Drop (`bruce_game_controller.py`)**:
+    - Registered all 4 chairs (`chair_1`, `chair_2`, `chair_3`, `chair_4`) into `self.dynamic_body_ids`.
+    - In Manipulation Mode (`M` key), users can left-click any chair and drag it along the floor plane.
+  - **Dynamic Replanning Verification**:
+    - Dragged `chair_1` directly into BRUCE's path at $(1.2, 0.0)$.
+    - Multi-elevation LiDAR instantly detected the new obstacle in the updated occupancy grid.
+    - A* planner immediately triggered dynamic replanning, generating an 11-waypoint detour with $0.474\,\text{m}$ clearance and zero collisions.
+
+---
+
+## 25. Change 25: Fix Object Flying & Catapulting During Pick-and-Place Manipulation
+
+- **Date & Context**: 2026-10-29
+- **Problem**: When users attempted to pick up and place objects (crates, boxes, chairs), objects would violently fly into the sky, catapult hundreds of meters away, or miss target tables.
+- **Root Cause Analysis**:
+  1. *Negative Ray Intersection Distance*: Floor plane projection used `t = -cam_pos[2] / ray_dir[2]`. When the cursor was tilted near the horizon or upward, `ray_dir[2]` became positive, producing a large negative `t` (e.g. $t = -36.0$). This projected the target position tens or hundreds of meters *behind* the camera.
+  2. *Excessive Spring Force Catapulting*: `drag_f = 80.0 * (drag_target - body_pos)` exerted an extreme acceleration of $320\,\text{m/s}^2$ on a $0.25\,\text{kg}$ object.
+  3. *Residual Release Velocity*: On releasing the mouse button, the body still possessed massive linear and angular velocities in `qvel`, launching it into the air as a projectile.
+  4. *Surface Unawareness*: Dragging was constrained only to the ground ($Z = 0$), ignoring elevated surfaces such as `place_table` ($Z = 0.425\,\text{m}$) or desks ($Z = 0.40\,\text{m}$), causing bodies to collide with table edges.
+- **Resolution**:
+  1. *Surface-Aware Raycasting*: Replaced the floor plane equation with `mujoco.mj_ray(..., bodyexclude=self.dragging_body_id)` to cast rays directly onto whatever surface is under the cursor (table tops, desks, chairs, floor).
+  2. *Horizon Clamping*: If ray points toward empty sky, distances and heights are securely clamped within the arena boundaries ($Z \le 1.2\,\text{m}, X, Y \in [-6.2, 6.2]$).
+  3. *Smooth Kinematic Position Tracking*: Updated `data.qpos` smoothly ($25\%$ blend/step) while holding, completely eliminating catapult spring forces.
+  4. *Zero Kinetic Energy Accumulation*: Zeroed `data.qvel` while dragging and upon mouse release (`vadr:vadr+6 = 0.0`).
+- **Verification**: Verified moving `pickup_crate` from the floor directly onto `place_table` at $(5.20, 0.30, 0.475)$ and `chair_1` onto the floor at $(1.50, 0.00, 0.00)$. Objects settled with $0.000000\,\text{m/s}$ residual velocity and zero catapulting.
+
+
