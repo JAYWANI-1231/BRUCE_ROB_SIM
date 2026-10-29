@@ -1,0 +1,39 @@
+digraph StateMachine {
+    graph [rankdir=TB, bgcolor="white", fontname="DejaVu Sans", nodesep=0.5, ranksep=0.6];
+    node [shape=box, style="filled,rounded", fontname="DejaVu Sans", fontsize=10, margin="0.2,0.12", penwidth=1.5];
+    edge [fontname="DejaVu Sans", fontsize=9, penwidth=1.3, color="#374151"];
+
+    init [shape=circle, label="", width=0.25, fillcolor="#1e3a8a", color="#1e3a8a"];
+    stand [label="STAND (Default Idle)\n• Active Stance Balance (z=0.44m)\n• Organic Breathing micro-sway (0.45 Hz)\n• Pitch/Roll PD Dampers", fillcolor="#dbeafe", color="#1d4ed8", fontcolor="#1e3a8a"];
+    walk [label="WALK\n• 1.25 Hz Stepping (0.24 m/s)\n• Camera-Relative WASD\n• Biomechanical Arm Swing", fillcolor="#dcfce7", color="#15803d", fontcolor="#14532d"];
+    sprint [label="SPRINT\n• 1.50 Hz Stepping (0.48 m/s)\n• Large Knee Lift (>35mm)\n• Dynamic Counter-Pitch", fillcolor="#bbf7d0", color="#16a34a", fontcolor="#14532d"];
+    crouch [label="CROUCH / SIT\n• Pelvis lowers to z=0.31m\n• Guard stance arms", fillcolor="#fef3c7", color="#d97706", fontcolor="#78350f"];
+    cr_walk [label="CROUCH-WALK\n• Low-profile stealth walk\n• Under-obstacle clearance", fillcolor="#fde68a", color="#b45309", fontcolor="#78350f"];
+    jump [label="4-PHASE JUMP\n1. Compression dip\n2. Explosive thrust (+160N)\n3. Ballistic flight\n4. Touchdown recovery", fillcolor="#ffedd5", color="#ea580c", fontcolor="#7c2d12"];
+    kick [label="DYNAMIC KICK\n• Wind-up leg pull back\n• Strike ball with >50N\n• Upper-body counter-balance", fillcolor="#fee2e2", color="#dc2626", fontcolor="#7f1d1d"];
+    push [label="PUSH STANCE\n• Forward power drive (+35N)\n• Stiff outstretched arms", fillcolor="#f3e8ff", color="#9333ea", fontcolor="#581c87"];
+    wave [label="WAVE GESTURE\n• Friendly arm wave\n• Relaxed stance", fillcolor="#f1f5f9", color="#64748b", fontcolor="#1e293b"];
+
+    init -> stand [color="#1e3a8a"];
+    stand -> walk [label=" WASD pressed", color="#15803d"];
+    walk -> stand [label=" WASD released", color="#1e3a8a"];
+    walk -> sprint [label=" Shift held", color="#16a34a"];
+    sprint -> walk [label=" Shift released", color="#15803d"];
+
+    stand -> crouch [label=" Ctrl held", color="#d97706"];
+    crouch -> stand [label=" Ctrl released", color="#1e3a8a"];
+    crouch -> cr_walk [label=" WASD pressed", color="#b45309"];
+    cr_walk -> crouch [label=" WASD released", color="#d97706"];
+
+    stand -> jump [label=" Space pressed", color="#ea580c"];
+    jump -> stand [label=" Touchdown (t=1.0s)", color="#1e3a8a"];
+
+    stand -> kick [label=" Left Click / F", color="#dc2626"];
+    kick -> stand [label=" Recovered (t=1.05s)", color="#1e3a8a"];
+
+    stand -> push [label=" Right Click / E", color="#9333ea"];
+    push -> stand [label=" Completed (t=1.2s)", color="#1e3a8a"];
+
+    stand -> wave [label=" G pressed", color="#64748b"];
+    wave -> stand [label=" Completed (t=1.8s)", color="#1e3a8a"];
+}

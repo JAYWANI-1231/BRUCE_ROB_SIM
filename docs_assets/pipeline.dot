@@ -1,0 +1,135 @@
+digraph G {
+    graph [rankdir=TB, bgcolor="white", fontname="DejaVu Sans", compound=true, nodesep=0.4, ranksep=0.5];
+    node [shape=box, style="filled,rounded", fontname="DejaVu Sans", fontsize=10, margin="0.2,0.12", penwidth=1.5];
+    edge [fontname="DejaVu Sans", fontsize=9, penwidth=1.3, color="#374151"];
+
+    subgraph cluster_sim {
+        label = "1. MuJoCo Physics & Game Engine (Window 1: bruce_game_controller.py)";
+        labeljust = "l";
+        fontsize = 12;
+        fontcolor = "#1e3a8a";
+        color = "#93c5fd";
+        style = "filled,rounded";
+        fillcolor = "#f0f7ff";
+
+        physics [label="1000 Hz Physics Loop
+mj_step()", fillcolor="#dbeafe", color="#3b82f6"];
+        mjdata [label="mjData State Structure
+• Base Pose (XYZ + Quat)
+• 16 Joint Angles (qpos)
+• 16 Joint Velocities (qvel)", fillcolor="#dbeafe", color="#3b82f6"];
+        in_lidar [label="Inline 2D LiDAR
+72 Rays at Torso Z=0.4m", fillcolor="#dbeafe", color="#3b82f6"];
+        occ_grid [label="2D Local Occupancy Grid
+200x200 uint8 (0.15m res)", fillcolor="#dbeafe", color="#3b82f6"];
+        astar [label="Inline A* Path Planner
+Obstacle Dilation + Waypoints", fillcolor="#bfdbfe", color="#2563eb", fontcolor="#1e3a8a"];
+
+        physics -> mjdata [color="#2563eb"];
+        mjdata -> in_lidar [color="#2563eb"];
+        in_lidar -> occ_grid [color="#2563eb"];
+        occ_grid -> astar [color="#2563eb"];
+    }
+
+    subgraph cluster_shm {
+        label = "2. POSIX Shared Memory IPC (/dev/shm/bruce_sim_state)";
+        labeljust = "l";
+        fontsize = 12;
+        fontcolor = "#14532d";
+        color = "#86efac";
+        style = "filled,rounded";
+        fillcolor = "#f0fdf4";
+
+        shm [label="Atomic 129-Float64 Shared Memory Buffer (1,032 Bytes)
+[0]: Timestamp | [1..2]: nq, nv | [3..25]: Base + Joint Positions (qpos)
+[26..47]: Base + Joint Velocities (qvel) | [126..128]: Nav Goal X, Y, Active", shape=box, fillcolor="#dcfce7", color="#22c55e", fontcolor="#14532d"];
+    }
+
+    subgraph cluster_bridge {
+        label = "3. ROS 2 Perception Bridge Node (Window 2: bruce_ros2_bridge.py)";
+        labeljust = "l";
+        fontsize = 12;
+        fontcolor = "#7c2d12";
+        color = "#fdba74";
+        style = "filled,rounded";
+        fillcolor = "#fffaf5";
+
+        sync [label="_sync_simulation_state()
+Updates Mirror mjData at 50 Hz", fillcolor="#ffedd5", color="#f97316"];
+        cam_render [label="Off-Screen OpenGL Renderer
+• 640x480 RGB (24-bit)
+• 640x480 Metric Depth (32-bit float)", fillcolor="#fed7aa", color="#ea580c"];
+        lidar_cast [label="360° 3D LiDAR Engine
+1,152 Rays (16 Rings x 72 Azimuth)
+bodyexclude=base_link (No Self-Occlusion)", fillcolor="#fed7aa", color="#ea580c"];
+        imu_odom [label="Kinematic State Estimator
+• IMU (Gravity + Body Twist)
+• Odometry (6-DOF Pose + Twist)
+• TF Tree Broadcaster", fillcolor="#fed7aa", color="#ea580c"];
+
+        sync -> cam_render [color="#ea580c"];
+        sync -> lidar_cast [color="#ea580c"];
+        sync -> imu_odom [color="#ea580c"];
+    }
+
+    subgraph cluster_topics {
+        label = "4. Standard ROS 2 Topics (SensorData QoS)";
+        labeljust = "l";
+        fontsize = 12;
+        fontcolor = "#581c87";
+        color = "#d8b4fe";
+        style = "filled,rounded";
+        fillcolor = "#faf5ff";
+
+        top_rgb [label="/bruce/camera/image_raw (30 Hz)
+/bruce/camera/depth/image_raw
+/bruce/camera/camera_info", fillcolor="#f3e8ff", color="#a855f7"];
+        top_lidar [label="/bruce/lidar/point_cloud (15 Hz)
+(sensor_msgs/PointCloud2)", fillcolor="#f3e8ff", color="#a855f7"];
+        top_odom [label="/bruce/odom (50 Hz)
+/bruce/imu/data (50 Hz)
+/tf and /tf_static", fillcolor="#f3e8ff", color="#a855f7"];
+        top_nav [label="/bruce/nav/goal (5 Hz)
+/bruce/nav/path (5 Hz)
+/bruce/nav/occupancy (2 Hz)", fillcolor="#f3e8ff", color="#a855f7"];
+    }
+
+    subgraph cluster_consumers {
+        label = "5. Downstream Backend & Perception Consumers";
+        labeljust = "l";
+        fontsize = 12;
+        fontcolor = "#0f172a";
+        color = "#cbd5e1";
+        style = "filled,rounded";
+        fillcolor = "#f8fafc";
+
+        rviz [label="RViz2 Visualization Suite
+• Torso Camera Feed Overlay
+• 3D LiDAR Point Cloud
+• Odometry Trail & Nav Markers", fillcolor="#e2e8f0", color="#64748b", fontcolor="#0f172a"];
+        rtabmap [label="RTAB-Map 3D SLAM Pipeline
+• RGB-D Visual Odometry
+• 3D ICP Point Cloud Alignment
+• Loop Closure via Arena Pillars
+• Global 3D OctoMap & 2D Grid", fillcolor="#e2e8f0", color="#64748b", fontcolor="#0f172a"];
+    }
+
+    mjdata -> shm [label="Lock-Free Write
+(1000 Hz / 60 FPS)", color="#16a34a", penwidth=2.0];
+    shm -> sync [label="Zero-Copy Read
+(50 Hz)", color="#ea580c", penwidth=2.0];
+
+    cam_render -> top_rgb [color="#9333ea"];
+    lidar_cast -> top_lidar [color="#9333ea"];
+    imu_odom -> top_odom [color="#9333ea"];
+    sync -> top_nav [color="#9333ea"];
+
+    top_rgb -> rviz [color="#475569"];
+    top_lidar -> rviz [color="#475569"];
+    top_odom -> rviz [color="#475569"];
+    top_nav -> rviz [color="#475569"];
+
+    top_rgb -> rtabmap [color="#475569"];
+    top_lidar -> rtabmap [color="#475569"];
+    top_odom -> rtabmap [color="#475569"];
+}

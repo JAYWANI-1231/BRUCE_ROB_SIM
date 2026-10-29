@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BRUCE Humanoid Robot - Sensor Architecture & Dataflow Specification</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 18mm 18mm 18mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #0f172a;
+    line-height: 1.5;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    color: #1e3a8a;
+    font-size: 22pt;
+    margin: 0 0 4px 0;
+    font-weight: 700;
+    border-bottom: 3px solid #1e3a8a;
+    padding-bottom: 8px;
+  }
+  .subtitle {
+    color: #475569;
+    font-size: 13pt;
+    margin: 0 0 16px 0;
+    font-weight: 400;
+  }
+  .meta-box {
+    background-color: #eff6ff;
+    border-left: 4px solid #2563eb;
+    padding: 10px 14px;
+    font-size: 9pt;
+    color: #1e3a8a;
+    margin-bottom: 20px;
+    border-radius: 0 6px 6px 0;
+  }
+  h2 {
+    color: #1e3a8a;
+    font-size: 14pt;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 4px;
+  }
+  h3 {
+    color: #2563eb;
+    font-size: 11.5pt;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  p {
+    margin: 0 0 8px 0;
+  }
+  ul {
+    margin: 0 0 12px 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+  strong {
+    color: #0f172a;
+  }
+  .figure-container {
+    text-align: center;
+    margin: 14px 0;
+    page-break-inside: avoid;
+  }
+  .figure-container img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  .caption {
+    font-size: 8.5pt;
+    color: #64748b;
+    font-style: italic;
+    margin-top: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 7px 10px;
+    border: 1px solid #1e3a8a;
+  }
+  td {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+  }
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8.5pt;
+    background-color: #f1f5f9;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #0f172a;
+  }
+</style>
+</head>
+<body>
+
+<h1>BRUCE Humanoid Robot</h1>
+<div class="subtitle">Sensor Architecture, Dataflow & Process Flow Technical Specification</div>
+
+<div class="meta-box">
+  <strong>Platform:</strong> BRUCE Open-Platform Bipedal Humanoid &nbsp;|&nbsp;
+  <strong>Simulation Engine:</strong> MuJoCo 3.x &nbsp;|&nbsp;
+  <strong>Framework:</strong> ROS 2 Jazzy &nbsp;|&nbsp;
+  <strong>IPC Transport:</strong> POSIX Shared Memory (<code>/dev/shm/bruce_sim_state</code>)
+</div>
+
+<h2>1. System Architecture & End-to-End Pipeline</h2>
+<p>
+  The simulation utilizes a <strong>two-process decoupled architecture</strong> to ensure that 1000 Hz bipedal contact physics and 60+ FPS interactive third-person game controls run completely isolated from heavy computer vision rendering and LiDAR raycasting loops:
+</p>
+<ul>
+  <li><strong>Process 1 (MuJoCo Physics & Interactive Game Loop):</strong> Runs physical stepping at 1000 Hz (<code>dt=0.001s</code>) and camera orbiting at 60+ FPS. Evaluates balance PD stabilization, walking trajectory state machines, dynamic obstacle dragging, and 72-ray horizontal LiDAR sweeps for local A* obstacle avoidance.</li>
+  <li><strong>Inter-Process Communication (POSIX Shared Memory):</strong> High-speed atomic buffer (<code>/dev/shm/bruce_sim_state</code>) carrying a 129-float64 state struct (sim timestamp, base position/quaternion, 16 joint angles/velocities, dynamic objects, and user-selected navigation goals).</li>
+  <li><strong>Process 2 (ROS 2 Perception Bridge):</strong> Dedicated ROS 2 Jazzy node that attaches to the shared memory buffer at 50 Hz. Renders off-screen RGB-D camera images, computes 1,152-ray 3D spherical LiDAR point clouds, broadcasts coordinate frames (TF), and streams standard <code>sensor_msgs</code> topics directly into RViz2 and RTAB-Map SLAM.</li>
+</ul>
+
+<div class="figure-container">
+  <img src="docs_assets/pipeline.png" alt="System Pipeline Diagram">
+  <div class="caption">Figure 1: Complete End-to-End Sensor Dataflow and Process Pipeline Across System Boundaries</div>
+</div>
+
+<h2>2. Sensor Specifications & ROS 2 Topic Catalog</h2>
+<p>
+  The following table provides the technical specifications, physical mounting frames, publishing rates, and message definitions for all active sensor streams:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Sensor Name</th>
+      <th>Physical Mount</th>
+      <th>Frame ID</th>
+      <th>Rate</th>
+      <th>ROS 2 Topic</th>
+      <th>ROS 2 Message Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>RGB Head Camera</strong></td>
+      <td>Torso Upper Base</td>
+      <td><code>head_camera_optical_frame</code></td>
+      <td style="text-align:center;">30 Hz</td>
+      <td><code>/bruce/camera/image_raw</code></td>
+      <td><code>sensor_msgs/msg/Image</code> (RGB8)</td>
+    </tr>
+    <tr>
+      <td><strong>Depth Camera</strong></td>
+      <td>Torso Upper Base</td>
+      <td><code>head_camera_optical_frame</code></td>
+      <td style="text-align:center;">30 Hz</td>
+      <td><code>/bruce/camera/depth/image_raw</code></td>
+      <td><code>sensor_msgs/msg/Image</code> (32FC1)</td>
+    </tr>
+    <tr>
+      <td><strong>Camera Intrinsics</strong></td>
+      <td>Calibrated Matrix</td>
+      <td><code>head_camera_optical_frame</code></td>
+      <td style="text-align:center;">30 Hz</td>
+      <td><code>/bruce/camera/camera_info</code></td>
+      <td><code>sensor_msgs/msg/CameraInfo</code></td>
+    </tr>
+    <tr>
+      <td><strong>360° 3D LiDAR</strong></td>
+      <td>Torso Crown Mount</td>
+      <td><code>bruce_lidar_link</code></td>
+      <td style="text-align:center;">15 Hz</td>
+      <td><code>/bruce/lidar/point_cloud</code></td>
+      <td><code>sensor_msgs/msg/PointCloud2</code></td>
+    </tr>
+    <tr>
+      <td><strong>Torso IMU (6-DOF)</strong></td>
+      <td>Torso Base Origin</td>
+      <td><code>bruce_imu_link</code></td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/bruce/imu/data</code></td>
+      <td><code>sensor_msgs/msg/Imu</code></td>
+    </tr>
+    <tr>
+      <td><strong>Robot Odometry</strong></td>
+      <td>Floating Base EKF</td>
+      <td><code>odom</code> &rarr; <code>base_link</code></td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/bruce/odom</code></td>
+      <td><code>nav_msgs/msg/Odometry</code></td>
+    </tr>
+    <tr>
+      <td><strong>Coordinate Frames</strong></td>
+      <td>Dynamic & Static</td>
+      <td>Multi-frame</td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/tf</code>, <code>/tf_static</code></td>
+      <td><code>tf2_msgs/msg/TFMessage</code></td>
+    </tr>
+    <tr>
+      <td><strong>Local 2D Nav Grid</strong></td>
+      <td>Inline Raycaster</td>
+      <td><code>odom</code></td>
+      <td style="text-align:center;">2 Hz</td>
+      <td><code>/bruce/nav/occupancy</code></td>
+      <td><code>nav_msgs/msg/OccupancyGrid</code></td>
+    </tr>
+    <tr>
+      <td><strong>Nav Goal Target</strong></td>
+      <td>Interactive Picker</td>
+      <td><code>odom</code></td>
+      <td style="text-align:center;">5 Hz</td>
+      <td><code>/bruce/nav/goal</code></td>
+      <td><code>geometry_msgs/msg/PoseStamped</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Detailed Sensor Processing Pipelines</h2>
+
+<h3>3.1 RGB-D Head Camera Pipeline</h3>
+<p>
+  The vision system is defined in <code>bruce.xml</code> on the torso base link: <code>&lt;camera name="head_camera" pos="0.08 0 0.16" fovy="65" xyaxes="0 -1 0 0 0 1"/&gt;</code>. The optical frame uses standard robotics orientation (+Z pointing forward, +X rightward, +Y downward).
+</p>
+<ul>
+  <li><strong>Off-Screen Context Synchronization:</strong> The bridge synchronizes mirror kinematics and invokes <code>renderer.update_scene(self.data, camera="head_camera")</code>.</li>
+  <li><strong>Color Video (RGB8):</strong> <code>renderer.render()</code> captures a 640&times;480&times;3 uint8 frame (1,920-byte row stride), published at 30 Hz.</li>
+  <li><strong>Metric Depth (32FC1):</strong> <code>renderer.enable_depth_rendering()</code> extracts true Euclidean distance in meters per pixel as 32-bit floats (2,560-byte row stride), published at 30 Hz.</li>
+  <li><strong>Intrinsics Matrix:</strong> Focal lengths (<code>fx = fy = 476.7 px</code>) and principal center (<code>cx = 320, cy = 240</code>) are published via <code>CameraInfo</code>.</li>
+</ul>
+
+<h3>3.2 360° Multi-Beam 3D LiDAR Pipeline</h3>
+<p>
+  Mounted on the torso crown at <code>bruce_lidar_link</code> (<code>pos=[0.02, 0, 0.22]</code>). Generates 1,152 rays per sweep (16 elevation rings &times; 72 azimuth steps):
+</p>
+<ul>
+  <li><strong>Pre-computed Geometry:</strong> 16 vertical rings (-16° to +16° in ~2.13° steps) &times; 72 horizontal steps (5° steps).</li>
+  <li><strong>Raycasting & Self-Occlusion Avoidance:</strong> Each local ray is rotated into world coordinates by the site orientation matrix and evaluated using <code>mujoco.mj_ray(..., bodyexclude=self.base_body_id)</code>. Passing <code>bodyexclude</code> ensures rays do not self-intersect the robot's own head, visor, or chest.</li>
+  <li><strong>PointCloud2 Serialization:</strong> Hits between 0.15m and 25.0m are converted to IEEE 754 float32 triples and published on <code>/bruce/lidar/point_cloud</code> at 15 Hz.</li>
+</ul>
+
+<h3>3.3 Coordinate Tree & Spatial Transforms (TF)</h3>
+<p>
+  Dynamic transforms represent the robot moving through the world, while static transforms represent rigid sensor mountings:
+</p>
+
+<div class="figure-container">
+  <img src="docs_assets/tf_tree.png" alt="TF Coordinate Hierarchy">
+  <div class="caption">Figure 2: TF Coordinate Tree and Spatial Transform Relationships</div>
+</div>
+
+<h2>4. POSIX Shared Memory Buffer Specification</h2>
+<p>
+  The memory segment (<code>/dev/shm/bruce_sim_state</code>) provides lock-free, zero-copy IPC between Process 1 and Process 2:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Index Range</th>
+      <th>Type</th>
+      <th>Count</th>
+      <th>Field Description</th>
+      <th>Update Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>[0]</code></td><td>float64</td><td>1</td><td>Simulation Timestamp (seconds)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[1 .. 2]</code></td><td>float64</td><td>2</td><td>Model Dimensions (nq=23, nv=22)</td><td style="text-align:center;">Static</td></tr>
+    <tr><td><code>[3 .. 5]</code></td><td>float64</td><td>3</td><td>Robot Torso Base Position (X, Y, Z in meters)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[6 .. 9]</code></td><td>float64</td><td>4</td><td>Robot Torso Orientation Quaternion (w, x, y, z)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[10 .. 25]</code></td><td>float64</td><td>16</td><td>16 Actuated Joint Angles (qpos in radians)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[26 .. 28]</code></td><td>float64</td><td>3</td><td>Torso Base Linear Velocity (vx, vy, vz in m/s)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[29 .. 31]</code></td><td>float64</td><td>3</td><td>Torso Base Angular Velocity (wx, wy, wz in rad/s)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[32 .. 47]</code></td><td>float64</td><td>16</td><td>16 Actuated Joint Velocities (qvel in rad/s)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[48 .. 125]</code></td><td>float64</td><td>78</td><td>Arena Dynamic Rigid Bodies (Ball, Crates, Barrels)</td><td style="text-align:center;">1000 Hz</td></tr>
+    <tr><td><code>[126]</code></td><td>float64</td><td>1</td><td>Navigation Goal X Coordinate (meters)</td><td style="text-align:center;">On Change</td></tr>
+    <tr><td><code>[127]</code></td><td>float64</td><td>1</td><td>Navigation Goal Y Coordinate (meters)</td><td style="text-align:center;">On Change</td></tr>
+    <tr><td><code>[128]</code></td><td>float64</td><td>1</td><td>Navigation Goal Active Flag (1.0 = Active, 0.0 = Off)</td><td style="text-align:center;">On Change</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Downstream Backend Consumers</h2>
+<ul>
+  <li><strong>RViz2 3D Dashboard:</strong> Visualizes live RGB video feeds, colored 3D LiDAR point clouds, odometry trajectory trails, the TF coordinate tree, local 2D occupancy costmaps, and active 3D navigation target beacons.</li>
+  <li><strong>RTAB-Map 3D SLAM Suite:</strong> Couples RGB-D visual feature tracking with 3D LiDAR point cloud registration (ICP). Detects loop closures using the arena's 4 visual landmark columns to eliminate odometry drift and generate persistent 3D OctoMaps and 2D grid maps for multi-room navigation.</li>
+</ul>
+
+</body>
+</html>

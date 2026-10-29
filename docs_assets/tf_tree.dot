@@ -1,0 +1,18 @@
+digraph TF {
+    graph [rankdir=LR, bgcolor="white", fontname="DejaVu Sans", nodesep=0.5, ranksep=0.6];
+    node [shape=box, style="filled,rounded", fontname="DejaVu Sans", fontsize=10, margin="0.15,0.1"];
+    edge [fontname="DejaVu Sans", fontsize=9, penwidth=1.4];
+
+    odom [label="odom\n(World Reference Frame)", fillcolor="#e0e7ff", color="#4338ca", fontcolor="#312e81"];
+    base [label="base_link\n(Robot Torso COM)", fillcolor="#dbeafe", color="#1d4ed8", fontcolor="#1e3a8a"];
+    cam [label="head_camera\npos: [0.08, 0, 0.16]", fillcolor="#ffedd5", color="#c2410c", fontcolor="#7c2d12"];
+    opt [label="head_camera_optical_frame\n(Standard ROS Optical: Z fwd, X rgt, Y down)\nrot: Rx(-90°) Rz(90°)", fillcolor="#fed7aa", color="#ea580c", fontcolor="#7c2d12"];
+    lidar [label="bruce_lidar_link\npos: [0.02, 0, 0.22]", fillcolor="#dcfce7", color="#15803d", fontcolor="#14532d"];
+    imu [label="bruce_imu_link\npos: [0.0, 0, 0.05]", fillcolor="#f3e8ff", color="#7e22ce", fontcolor="#581c87"];
+
+    odom -> base [label=" Dynamic TF\n (50 Hz Odometry)", color="#2563eb", penwidth=2.0];
+    base -> cam [label=" Static TF", color="#c2410c"];
+    cam -> opt [label=" Static TF", color="#ea580c"];
+    base -> lidar [label=" Static TF", color="#15803d"];
+    base -> imu [label=" Static TF", color="#7e22ce"];
+}

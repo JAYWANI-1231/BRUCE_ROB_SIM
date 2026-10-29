@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BRUCE Humanoid Robot - Master Engineering Specification</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 16mm 16mm 16mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #0f172a;
+    line-height: 1.45;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    color: #1e3a8a;
+    font-size: 22pt;
+    margin: 0 0 4px 0;
+    font-weight: 700;
+    border-bottom: 3px solid #1e3a8a;
+    padding-bottom: 6px;
+  }
+  .subtitle {
+    color: #475569;
+    font-size: 12pt;
+    margin: 0 0 14px 0;
+    font-weight: 400;
+  }
+  .meta-box {
+    background-color: #eff6ff;
+    border-left: 4px solid #2563eb;
+    padding: 8px 12px;
+    font-size: 8.5pt;
+    color: #1e3a8a;
+    margin-bottom: 16px;
+    border-radius: 0 6px 6px 0;
+  }
+  h2 {
+    color: #1e3a8a;
+    font-size: 13.5pt;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 4px;
+    page-break-after: avoid;
+  }
+  h3 {
+    color: #2563eb;
+    font-size: 11pt;
+    margin-top: 12px;
+    margin-bottom: 6px;
+    font-weight: 600;
+    page-break-after: avoid;
+  }
+  p {
+    margin: 0 0 6px 0;
+  }
+  ul {
+    margin: 0 0 10px 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+  strong {
+    color: #0f172a;
+  }
+  .figure-container {
+    text-align: center;
+    margin: 12px 0;
+    page-break-inside: avoid;
+  }
+  .figure-container img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  .caption {
+    font-size: 8pt;
+    color: #64748b;
+    font-style: italic;
+    margin-top: 5px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 6px 8px;
+    border: 1px solid #1e3a8a;
+  }
+  td {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+  }
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8pt;
+    background-color: #f1f5f9;
+    padding: 1px 3px;
+    border-radius: 3px;
+    color: #0f172a;
+  }
+</style>
+</head>
+<body>
+
+<h1>BRUCE Humanoid Robot</h1>
+<div class="subtitle">Master Engineering Specification: Simulation Architecture, Decision Rationale & Feature Catalog</div>
+
+<div class="meta-box">
+  <strong>Platform:</strong> BRUCE Open-Platform Bipedal Humanoid &nbsp;|&nbsp;
+  <strong>Simulation Engine:</strong> MuJoCo 3.x &nbsp;|&nbsp;
+  <strong>Framework:</strong> ROS 2 Jazzy &nbsp;|&nbsp;
+  <strong>Perception:</strong> RTAB-Map SLAM &nbsp;|&nbsp;
+  <strong>Architecture:</strong> Decoupled Two-Process POSIX Shared Memory
+</div>
+
+<h2>1. The BRUCE Simulation Model & Working Principles</h2>
+<p>
+  BRUCE is an agile bipedal humanoid robot standing 0.45m at nominal pelvis height with a total mass of 4.2 kg. The simulation environment accurately models the physical robot's mechanical structure, actuator dynamics, and environmental contact mechanics:
+</p>
+<ul>
+  <li><strong>Mechanical Topology (16 Actuated DOF):</strong> 10 proprietary BEAR planetary actuators (5 per leg: hip yaw, hip roll, hip pitch, knee pitch, ankle pitch) providing high torque density and low backdrive friction (clamped to &plusmn;160 Nm in simulation). Upper body features 6 Dynamixel servos (3 per arm: shoulder pitch, shoulder roll, elbow pitch) providing compliant arm swing and manipulation stances (clamped to &plusmn;35 Nm).</li>
+  <li><strong>MuJoCo Contact Dynamics (1000 Hz):</strong> The physics loop steps at 1000 Hz (<code>dt=0.001s</code>) using projected Gauss-Seidel optimization with elliptic friction cones and soft-contact parameters (<code>solref=0.004</code>, <code>solimp=0.9</code>). This eliminates foot contact chattering and penetration spikes during single-stance and double-stance transitions.</li>
+  <li><strong>25&times;25m Hybrid Virtual Arena:</strong> Combines an indoor robotics lab (corridors, partition rooms, 1.0m doorways, 4 landmark columns for visual SLAM loop closure) with an outdoor obstacle playground (3-step staircase, 12&deg; incline ramp, regulation soccer goal, pushable crates, barrels, and delivery table).</li>
+</ul>
+
+<div class="figure-container">
+  <img src="docs_assets/pipeline.png" alt="System Architecture and Pipeline">
+  <div class="caption">Figure 1: Complete System Architecture, Inter-Process Communication & Topic Pipeline</div>
+</div>
+
+<h2>2. Architectural Decisions & Design Rationale ("The Why")</h2>
+<p>
+  Every major design choice was made to resolve specific physical, mathematical, or performance trade-offs:
+</p>
+<ul>
+  <li><strong>Decision 1: MuJoCo over Gazebo Classic:</strong> Gazebo's ODE engine produced foot vibration, penetration impulses, high latency, and low frame rates (&lt;25 FPS) for bipedal walking. MuJoCo solves contacts via convex optimization, yielding rock-solid stability at 1000 Hz and native 60+ FPS GLFW graphics with hardware mouse locking.</li>
+  <li><strong>Decision 2: Custom GLFW Pipeline over Passive Viewer:</strong> MuJoCo's built-in passive viewer lacks continuous key-hold tracking and cannot lock the mouse cursor for 360° camera orbit. A custom GLFW rendering loop with <code>MjvScene</code>, <code>MjrContext</code>, and <code>mjr_overlay</code> was built for responsive game controls and live HUD displays.</li>
+  <li><strong>Decision 3: Camera-Relative Locomotion Math:</strong> Projecting <code>WASD</code> vectors against camera azimuth angle &theta; ensures that pressing <code>W</code> always moves forward in the direction the camera is looking, matching modern third-person action games.</li>
+  <li><strong>Decision 4: Walking Stabilization (Counter-Pitch Torque & Knee Lift):</strong> Early forward walking stalled due to foot toe-stubbing (8mm clearance dragged on the floor) and pelvis thrust tipping moments (+18 Nm tilting the torso forward &gt;20&deg;). Increasing knee lift to &gt;35mm with ankle dorsiflexion and adding dynamic counter-pitch torque (&tau; = -F<sub>propel</sub> &middot; 0.22 Nm) stabilized torso pitch within 3&deg;–6&deg; with zero backward drift.</li>
+  <li><strong>Decision 5: Two-Process Decoupled IPC Architecture:</strong> Off-screen RGB-D rendering and 1,152-ray LiDAR sweeps take 15–30 ms per frame. Executing them inside the game controller would drop frame rates below 20 FPS and destabilize the balance loop. Decoupling into two processes via a 1,032-byte POSIX shared memory buffer ensures 60+ FPS gameplay with zero perception latency.</li>
+  <li><strong>Decision 6: Spherical 3D LiDAR with Body Exclusion:</strong> Raycasting 1,152 beams (16 elevation rings &times; 72 azimuths) using <code>mujoco.mj_ray()</code> with <code>bodyexclude=self.base_body_id</code> ensures rays pass through BRUCE's own chest and head meshes, preventing false self-occlusion.</li>
+  <li><strong>Decision 7: Upper-Body Biomechanics & Aesthetics:</strong> Eliminated the unnatural horizontal T-pose by rolling resting shoulders to &plusmn;1.38 rad and flexing elbows to &plusmn;0.50 rad (~28&deg; forward bend). Added phase-coupled arm swing opposite to legs, 0.45 Hz breathing micro-sway, and contoured head, visor, and chest armor geoms.</li>
+  <li><strong>Decision 8: Dual Mouse Mode (Game Look vs Object Dragging):</strong> Key <code>M</code> toggles between Game Mode (cursor locked to camera orbit) and Manipulation Mode (cursor unlocked). In Manipulation Mode, raycasting calculates world floor points and applies spring-damper forces (F = 80&Delta;p - 12v) to drag arena objects live.</li>
+  <li><strong>Decision 9: Inline A* Planner vs External Nav2 Loop:</strong> External Nav2 costmaps over ROS introduce 50–200 ms latency. An inline A* planner operating on a 200&times;200 LiDAR occupancy grid inside the controller avoids obstacles at 60 FPS without feedback latency, while streaming costmaps to ROS 2 for visualization.</li>
+  <li><strong>Decision 10: Snap Environment Isolation:</strong> Purging Snap-inherited variables (<code>GTK_PATH</code>) in all bash launchers prevents Qt5 in RViz2 from loading mismatched glibc 2.31 libraries from Snap, guaranteeing 100% reliable startup on Ubuntu 24.04.</li>
+</ul>
+
+<h2>3. Robot Functions, Locomotion States & Feature Catalog</h2>
+<p>
+  BRUCE features a hierarchical state machine handling dynamic locomotion, physical interaction, and autonomous tasks:
+</p>
+
+<div class="figure-container">
+  <img src="docs_assets/state_machine.png" alt="Locomotion State Machine">
+  <div class="caption">Figure 2: Hierarchical Posture & Locomotion State Machine Transitions</div>
+</div>
+
+<ul>
+  <li><strong>STAND (Idle Balance):</strong> Maintains pelvis height at z=0.44m with active roll/pitch PD attitude dampers and organic 0.45 Hz breathing micro-sway.</li>
+  <li><strong>WALK & SPRINT (Omnidirectional):</strong> Stepping frequency scales from 1.25 Hz (0.24 m/s) to 1.50 Hz (0.48 m/s). Lateral hip roll weight-transfer sway (0.065 rad) stabilizes single-stance phases, while arms swing in opposition with dynamic elbow bending.</li>
+  <li><strong>CROUCH & CROUCH-WALK:</strong> Flexes knees and hips to drop pelvis to z=0.31m. Arms adopt a forward guard stance. WASD allows low-profile stealth walking under overhead obstacles.</li>
+  <li><strong>4-PHASE JUMP:</strong> Executes pre-jump compression dip (0.0–0.15s), explosive thrust extension (+160N impulse, 0.15–0.30s), ballistic airborne flight (0.30–0.65s), and compliant touchdown landing absorption (0.65–1.00s).</li>
+  <li><strong>DYNAMIC SOCCER KICK:</strong> 3-phase sequence: left stance leg bends for stability, right kicking leg pulls back, then snaps forward with dynamic forward propulsion to launch the ball with &gt;50N force.</li>
+  <li><strong>FORWARD PUSH STANCE:</strong> Drives forward with stiff, outstretched arms applying +35N continuous pushing force against target crates and obstacle blocks.</li>
+  <li><strong>LIVE MOUSE DRAGGING:</strong> In Manipulation Mode (<code>M</code> key), clicking and dragging dynamic objects moves them across the floor in real time to create custom obstacles.</li>
+  <li><strong>AUTONOMOUS CLICK-TO-NAVIGATE:</strong> Double-clicking the floor plants a glowing green Goal Marker. Pressing <code>N</code> activates autonomous A* path planning using inline LiDAR obstacle avoidance.</li>
+</ul>
+
+<h2>4. Perception Sensors, Tools & Software Ecosystem</h2>
+<p>
+  The table below details all perception sensors, coordinate transforms, and backend tools in the platform:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tool / Sensor</th>
+      <th>Physical Spec</th>
+      <th>Update Rate</th>
+      <th>ROS 2 Topic / Interface</th>
+      <th>Operational Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>RGB-D Head Camera</strong></td>
+      <td>640&times;480, FOV 65&deg;</td>
+      <td style="text-align:center;">30 Hz</td>
+      <td><code>/bruce/camera/image_raw</code><br><code>/bruce/camera/depth/image_raw</code></td>
+      <td>First-person vision in RViz2; ORB feature tracking for Visual Odometry in RTAB-Map</td>
+    </tr>
+    <tr>
+      <td><strong>Camera Intrinsics</strong></td>
+      <td>Pinhole fx=fy=476.7</td>
+      <td style="text-align:center;">30 Hz</td>
+      <td><code>/bruce/camera/camera_info</code></td>
+      <td>Calibrated projection matrix for depth unprojection into 3D metric space</td>
+    </tr>
+    <tr>
+      <td><strong>360° 3D LiDAR</strong></td>
+      <td>16 rings &times; 72 azimuths (1,152 rays)</td>
+      <td style="text-align:center;">15 Hz</td>
+      <td><code>/bruce/lidar/point_cloud</code></td>
+      <td>High-density 3D obstacle mapping, stair detection, and ICP point cloud alignment in SLAM</td>
+    </tr>
+    <tr>
+      <td><strong>Torso IMU (6-DOF)</strong></td>
+      <td>Base link dynamics</td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/bruce/imu/data</code></td>
+      <td>Angular body rates and gravity-compensated linear accelerations for attitude estimation</td>
+    </tr>
+    <tr>
+      <td><strong>Ground-Truth Odom</strong></td>
+      <td>Floating base EKF</td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/bruce/odom</code></td>
+      <td>Tracks robot trajectory and velocity twist in odom reference frame</td>
+    </tr>
+    <tr>
+      <td><strong>TF Transform Tree</strong></td>
+      <td>Dynamic & Static</td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>/tf</code>, <code>/tf_static</code></td>
+      <td>Spatial frame tree: odom &rarr; base_link &rarr; head_camera &rarr; optical / lidar / imu</td>
+    </tr>
+    <tr>
+      <td><strong>Local 2D Nav Grid</strong></td>
+      <td>200&times;200 uint8 (0.15m res)</td>
+      <td style="text-align:center;">2 Hz</td>
+      <td><code>/bruce/nav/occupancy</code></td>
+      <td>Live costmap mirroring inline LiDAR obstacle hits for local path visualization</td>
+    </tr>
+    <tr>
+      <td><strong>Navigation Target</strong></td>
+      <td>Interactive picker</td>
+      <td style="text-align:center;">5 Hz</td>
+      <td><code>/bruce/nav/goal</code><br><code>/bruce/nav/path</code></td>
+      <td>Streams active navigation goal arrow and straight-line path trail to RViz2</td>
+    </tr>
+    <tr>
+      <td><strong>ROS 2 Bridge Node</strong></td>
+      <td>POSIX SHM Consumer</td>
+      <td style="text-align:center;">50 Hz</td>
+      <td><code>bruce_ros2_bridge.py</code></td>
+      <td>Decoupled node reading shared memory, running off-screen rendering and topic publishing</td>
+    </tr>
+    <tr>
+      <td><strong>RViz2 Visualization</strong></td>
+      <td>Robotics GUI</td>
+      <td style="text-align:center;">60 FPS</td>
+      <td><code>bruce_slam.rviz</code></td>
+      <td>Real-time 3D dashboard displaying camera overlays, point clouds, trajectory paths, and TF frames</td>
+    </tr>
+    <tr>
+      <td><strong>RTAB-Map 3D SLAM</strong></td>
+      <td>Multi-session SLAM</td>
+      <td style="text-align:center;">15 Hz</td>
+      <td><code>run_ros2_perception.sh --slam</code></td>
+      <td>Fuses RGB-D and 3D LiDAR with landmark pillar loop closure to build global 3D OctoMaps</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="figure-container">
+  <img src="docs_assets/tf_tree.png" alt="TF Coordinate Hierarchy">
+  <div class="caption">Figure 3: Spatial Coordinate Tree (TF) Connecting Robot Frames to World Origin</div>
+</div>
+
+<h2>5. Interactive Keybindings & Controls Manual</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key / Input</th>
+      <th>Mode</th>
+      <th>Action</th>
+      <th>Functional Behavior</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>W / S</code></td><td style="text-align:center;">Game</td><td>Walk Forward / Backward</td><td>Camera-relative locomotion in active look direction</td></tr>
+    <tr><td><code>A / D</code></td><td style="text-align:center;">Game</td><td>Strafe Left / Right</td><td>Camera-relative lateral sidestepping</td></tr>
+    <tr><td><code>Shift + WASD</code></td><td style="text-align:center;">Game</td><td>Sprint</td><td>Accelerates gait to 1.50 Hz (0.48 m/s) with forward lean and wide strides</td></tr>
+    <tr><td><code>Ctrl (Hold)</code></td><td style="text-align:center;">Game</td><td>Crouch</td><td>Lowers pelvis to z=0.31m into defensive guard; WASD enables crouch-walking</td></tr>
+    <tr><td><code>Space</code></td><td style="text-align:center;">Game</td><td>Jump</td><td>4-phase dynamic vertical jump with explosive +160N thrust and compliant landing</td></tr>
+    <tr><td><code>Left Click / F</code></td><td style="text-align:center;">Game</td><td>Kick</td><td>Dynamic leg strike launching the soccer ball with &gt;50N force</td></tr>
+    <tr><td><code>Right Click / E</code></td><td style="text-align:center;">Game</td><td>Push</td><td>Forward power stance with rigid arms pushing crates and barrels</td></tr>
+    <tr><td><code>G</code></td><td style="text-align:center;">Game</td><td>Wave</td><td>Friendly greeting wave gesture with right arm</td></tr>
+    <tr><td><code>R</code></td><td style="text-align:center;">Any</td><td>Reset</td><td>Instantly teleports robot, ball, and arena objects back to initial poses</td></tr>
+    <tr><td><code>M</code></td><td style="text-align:center;">Any</td><td>Toggle Mode</td><td>Switches between Game Mode (cursor locked) and Manipulation Mode (cursor free)</td></tr>
+    <tr><td><code>Left Drag</code></td><td style="text-align:center;">Manipulation</td><td>Move Object</td><td>Applies spring-damper force to drag dynamic objects across the arena floor</td></tr>
+    <tr><td><code>Double Click</code></td><td style="text-align:center;">Manipulation</td><td>Plant Goal</td><td>Plants glowing green Goal Marker on floor for autonomous navigation</td></tr>
+    <tr><td><code>Right Click</code></td><td style="text-align:center;">Manipulation</td><td>Clear Goal</td><td>Clears active navigation goal marker</td></tr>
+    <tr><td><code>N</code></td><td style="text-align:center;">Any</td><td>Auto-Nav</td><td>Toggles autonomous navigation; robot dodges obstacles via inline LiDAR A*</td></tr>
+    <tr><td><code>Mouse Move</code></td><td style="text-align:center;">Game</td><td>Orbit Camera</td><td>360&deg; horizontal yaw azimuth and -75&deg; to +20&deg; vertical pitch elevation</td></tr>
+    <tr><td><code>Mouse Wheel</code></td><td style="text-align:center;">Any</td><td>Zoom Camera</td><td>Smoothly adjusts camera follow distance from 0.8m to 5.0m</td></tr>
+    <tr><td><code>Tab / Esc</code></td><td style="text-align:center;">Game</td><td>Free Cursor</td><td>Releases hardware cursor lock to click outside window</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>
